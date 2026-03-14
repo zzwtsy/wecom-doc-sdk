@@ -63,7 +63,8 @@ with WeComClient(
 ### 使用 Pydantic 模型查询字段
 
 ```python
-from wecom_doc_sdk import GetFieldsRequest, WeComClient
+from wecom_doc_sdk import WeComClient
+from wecom_doc_sdk.models.fields import GetFieldsRequest
 
 with WeComClient(
     corp_id="YOUR_CORP_ID",
@@ -121,7 +122,8 @@ SDK 将错误分成两类：
 推荐按下面的方式处理：
 
 ```python
-from wecom_doc_sdk import WeComAPIError, WeComRequestError, WeComClient
+from wecom_doc_sdk import WeComClient
+from wecom_doc_sdk.exceptions import WeComAPIError, WeComRequestError
 
 try:
     with WeComClient(
@@ -145,20 +147,19 @@ except WeComRequestError as exc:
 - 所有模型统一通过 `model_dump(by_alias=True, exclude_none=True)` 序列化
 - 当前客户端为同步版；如后续需要，可在现有结构上扩展异步能力
 
-## 常用导出
+## 导入建议
 
-根包 `wecom_doc_sdk` 已导出常用客户端、异常和请求/响应模型，例如：
+为避免根包导出过多类型，推荐按职责导入：
 
-- `WeComClient`
-- `AccessTokenProvider`
-- `WeComAPIError`
-- `WeComRequestError`
-- `AddSheetRequest`
-- `GetFieldsRequest`
-- `AddRecordsRequest`
-- `UpdateViewRequest`
+- 根包 `wecom_doc_sdk`：`WeComClient`、`AccessTokenProvider`
+- 异常：从 `wecom_doc_sdk.exceptions` 导入 `WeComAPIError`、`WeComRequestError`
+- 子表模型：从 `wecom_doc_sdk.models.sheets` 导入
+- 视图模型：从 `wecom_doc_sdk.models.views` 导入
+- 字段模型：从 `wecom_doc_sdk.models.fields` 导入
+- 记录模型：从 `wecom_doc_sdk.models.records` 导入
+- 编组模型：从 `wecom_doc_sdk.models.groups` 导入
 
-更多模型可从 `wecom_doc_sdk.models` 导入。
+例如：`from wecom_doc_sdk.models.fields import GetFieldsRequest`
 
 ## 项目结构
 

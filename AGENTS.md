@@ -32,6 +32,7 @@
 - Pydantic 命名冲突：若模块内需要保留业务别名 `Field`，统一将 Pydantic 的 `Field` 导入为 `PydanticField`
 - 错误处理：统一沿用 `WeComAPIError` / `WeComRequestError`，并以 `errcode == 0` 作为业务成功判断标准
 - 扩展性：新增接口按模块拆分，避免把逻辑堆在单文件
+- 导出约束：根包 `wecom_doc_sdk` 保持精简，只导出客户端等入口对象；异常与请求/响应模型分别从对应子模块导入
 
 详细规范见 `CONTRIBUTING.md`。
 

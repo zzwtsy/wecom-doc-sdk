@@ -18,6 +18,7 @@
 - `tests/`：单元测试目录（如不存在，新增时保持该结构）
 - 建议包结构示例：`src/wecom_doc_sdk/`、`src/wecom_doc_sdk/client.py`、`src/wecom_doc_sdk/models/`、`src/wecom_doc_sdk/apis/`
 - 扩展约束：新增接口优先在 `apis/` 下增量扩展，避免接口逻辑堆在单一文件中
+- 导出约束：根包 `wecom_doc_sdk` 仅导出入口级对象；异常从 `wecom_doc_sdk.exceptions` 导入，请求/响应模型从 `wecom_doc_sdk.models.<domain>` 导入
 
 ## 代码风格
 
