@@ -32,7 +32,7 @@
 
 ## 常用命令
 
-- 安装依赖（开发）：`pip install -e .[dev]` 或 `uv pip install -e .[dev]`
+- 安装依赖（开发）：`uv pip install -e .[dev]`
 - 代码风格：`ruff check .`
 - 代码格式：`black --check .`
 - 测试：`pytest`
