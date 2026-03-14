@@ -163,12 +163,15 @@ except WeComRequestError as exc:
 ## 项目结构
 
 ```text
+references/          # 官方文档入口与实现参考索引
 src/wecom_doc_sdk/
 ├── apis/           # 接口封装
 ├── models/         # Pydantic 模型与枚举
 ├── client.py       # 客户端、鉴权与统一请求入口
 └── exceptions.py   # 异常定义
 ```
+
+维护时可参考 `references/wecom-docs.md` 中整理的官方文档入口与当前实现对应条目。
 
 ## 开发
 
