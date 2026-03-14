@@ -37,12 +37,14 @@
 
 ## 常用命令
 
-- 安装依赖（开发）：`uv pip install -e .[dev]`
+- 安装依赖（开发）：`uv sync --dev`
 - IDE/ty 解释器：优先使用仓库内 `.venv`，VS Code 建议绑定 `${workspaceFolder}\\.venv\\Scripts\\python.exe`
-- 代码风格：`ruff check .`
-- 代码格式：`black --check .`
-- 类型检查：`ty check`
-- 测试：`pytest`
+- 代码风格：`uv run ruff check .`
+- 代码格式：`uv run black --check .`
+- 类型检查：`uv run ty check`
+- 测试：`uv run pytest`
+- 本地构建：`uv build`
+- 分发包检查：`uvx twine check dist/*`
 
 ## 变更约定
 

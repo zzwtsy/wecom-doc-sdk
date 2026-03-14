@@ -42,7 +42,7 @@ uv add wecom-doc-sdk
 如果是本地开发安装：
 
 ```bash
-uv pip install -e .[dev]
+uv sync --dev
 ```
 
 ## 快速开始
@@ -178,16 +178,37 @@ src/wecom_doc_sdk/
 安装开发依赖：
 
 ```bash
-uv pip install -e .[dev]
+uv sync --dev
 ```
 
 常用检查命令：
 
 ```bash
-ruff check .
-black --check .
-ty check
-pytest
+uv run ruff check .
+uv run black --check .
+uv run ty check
+uv run pytest
+```
+
+## 发布
+
+本地构建与检查：
+
+```bash
+uv build
+uvx twine check dist/*
+```
+
+发布到 TestPyPI：
+
+```bash
+uv publish --index testpypi
+```
+
+发布到 PyPI：
+
+```bash
+uv publish
 ```
 
 项目约定与贡献规范见 `CONTRIBUTING.md`。

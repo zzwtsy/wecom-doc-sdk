@@ -6,7 +6,7 @@
 
 - Python 版本：3.10（与项目 `pyproject.toml` 对齐）
 - 建议使用 `uv` 或虚拟环境（`venv`/`conda`）隔离依赖
-- 依赖安装（开发环境）：`uv pip install -e .[dev]` 或 `pip install -e .[dev]`
+- 依赖安装（开发环境）：`uv sync --dev`
 - 发布包名为 `wecom-doc-sdk`，Python 导入名为 `wecom_doc_sdk`
 - 如使用 VS Code/ty，解释器应绑定到仓库内 `.venv`，建议使用 `${workspaceFolder}\\.venv\\Scripts\\python.exe`
 
@@ -70,11 +70,19 @@
 - 确认 `pyproject.toml` 中的 `project.name`、`version`、`description` 与 README 描述一致
 - 确认 README 中安装命令使用 `wecom-doc-sdk`，导入示例使用 `wecom_doc_sdk`
 - 确认公共导出与 README 示例保持一致
-- 发布前至少执行一次完整质量检查：`ruff check .`、`black --check .`、`ty check`、`pytest`
+- 发布前至少执行一次完整质量检查：`uv run ruff check .`、`uv run black --check .`、`uv run ty check`、`uv run pytest`
+- 发布前至少执行一次本地打包与元数据检查：`uv build`、`uvx twine check dist/*`
+
+## 发布命令（uv）
+
+- 本地构建：`uv build`
+- 分发包检查：`uvx twine check dist/*`
+- 发布到 TestPyPI：`uv publish --index testpypi`
+- 发布到 PyPI：`uv publish`
 
 ## 质量检查
 
-- 代码风格：`ruff check .`
-- 代码格式：`black --check .`
-- 类型检查：`ty check`
-- 测试：`pytest`
+- 代码风格：`uv run ruff check .`
+- 代码格式：`uv run black --check .`
+- 类型检查：`uv run ty check`
+- 测试：`uv run pytest`
