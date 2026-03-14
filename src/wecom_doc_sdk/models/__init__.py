@@ -251,7 +251,3 @@ __all__ = [
     "ViewColorConfig",
     "ViewProperty",
 ]
-
-
-
-

@@ -8,6 +8,11 @@ class StrEnum(str, Enum):
 
 
 class FieldType(StrEnum):
+    """智能表字段类型枚举。
+
+    用于字段定义、字段查询结果以及筛选条件中的 `field_type`。
+    """
+
     FIELD_TYPE_TEXT = "FIELD_TYPE_TEXT"
     FIELD_TYPE_NUMBER = "FIELD_TYPE_NUMBER"
     FIELD_TYPE_CHECKBOX = "FIELD_TYPE_CHECKBOX"
@@ -36,6 +41,8 @@ class FieldType(StrEnum):
 
 
 class ViewType(StrEnum):
+    """智能表视图类型枚举。"""
+
     VEW_UNKNOWN = "VEW_UNKNOWN"
     VIEW_TYPE_GRID = "VIEW_TYPE_GRID"
     VIEW_TYPE_KANBAN = "VIEW_TYPE_KANBAN"
@@ -45,11 +52,15 @@ class ViewType(StrEnum):
 
 
 class CellValueKeyType(StrEnum):
+    """记录 `values` 字典的 key 表示方式。"""
+
     CELL_VALUE_KEY_TYPE_FIELD_TITLE = "CELL_VALUE_KEY_TYPE_FIELD_TITLE"
     CELL_VALUE_KEY_TYPE_FIELD_ID = "CELL_VALUE_KEY_TYPE_FIELD_ID"
 
 
 class Operator(StrEnum):
+    """筛选条件支持的操作符。"""
+
     OPERATOR_UNKNOWN = "OPERATOR_UNKNOWN"
     OPERATOR_IS = "OPERATOR_IS"
     OPERATOR_IS_NOT = "OPERATOR_IS_NOT"
@@ -64,6 +75,8 @@ class Operator(StrEnum):
 
 
 class DateTimeType(StrEnum):
+    """日期筛选值类型。"""
+
     DATE_TIME_TYPE_DETAIL_DATE = "DATE_TIME_TYPE_DETAIL_DATE"
     DATE_TIME_TYPE_TODAY = "DATE_TIME_TYPE_TODAY"
     DATE_TIME_TYPE_TOMORROW = "DATE_TIME_TYPE_TOMORROW"
@@ -79,17 +92,26 @@ class DateTimeType(StrEnum):
 
 
 class Conjunction(StrEnum):
+    """多个筛选条件的连接关系。"""
+
     CONJUNCTION_AND = "CONJUNCTION_AND"
     CONJUNCTION_OR = "CONJUNCTION_OR"
 
 
 class ViewColorConditionType(StrEnum):
+    """视图填色作用范围。"""
+
     VIEW_COLOR_CONDITION_TYPE_ROW = "VIEW_COLOR_CONDITION_TYPE_ROW"
     VIEW_COLOR_CONDITION_TYPE_COLUMN = "VIEW_COLOR_CONDITION_TYPE_COLUMN"
     VIEW_COLOR_CONDITION_TYPE_CELL = "VIEW_COLOR_CONDITION_TYPE_CELL"
 
 
 class ViewColor(StrEnum):
+    """视图条件填色的可选颜色值。
+
+    这些值需要原样透传给企业微信接口，不建议自行改写。
+    """
+
     fillColorGray_5 = "fillColorGray_5"
     accentBlueLighten_5 = "accentBlueLighten_5"
     chromeCyanLighten_5 = "chromeCyanLighten_5"
@@ -120,32 +142,44 @@ class ViewColor(StrEnum):
 
 
 class LinkType(StrEnum):
+    """超链接字段的展示样式。"""
+
     LINK_TYPE_PURE_TEXT = "LINK_TYPE_PURE_TEXT"
     LINK_TYPE_ICON_TEXT = "LINK_TYPE_ICON_TEXT"
 
 
 class DisplayMode(StrEnum):
+    """文件字段等场景的展示模式。"""
+
     DISPLAY_MODE_LIST = "DISPLAY_MODE_LIST"
     DISPLAY_MODE_GRID = "DISPLAY_MODE_GRID"
 
 
 class LocationInputType(StrEnum):
+    """地理位置字段的输入方式。"""
+
     LOCATION_INPUT_TYPE_MANUAL = "LOCATION_INPUT_TYPE_MANUAL"
     LOCATION_INPUT_TYPE_AUTO = "LOCATION_INPUT_TYPE_AUTO"
 
 
 class NumberType(StrEnum):
+    """自动编号字段的编号模式。"""
+
     NUMBER_TYPE_INCR = "NUMBER_TYPE_INCR"
     NUMBER_TYPE_CUSTOM = "NUMBER_TYPE_CUSTOM"
 
 
 class NumberRuleType(StrEnum):
+    """自动编号规则项类型。"""
+
     NUMBER_RULE_TYPE_INCR = "NUMBER_RULE_TYPE_INCR"
     NUMBER_RULE_TYPE_FIXED_CHAR = "NUMBER_RULE_TYPE_FIXED_CHAR"
     NUMBER_RULE_TYPE_TIME = "NUMBER_RULE_TYPE_TIME"
 
 
 class CurrencyType(StrEnum):
+    """货币字段支持的货币符号类型。"""
+
     CURRENCY_TYPE_CNY = "CURRENCY_TYPE_CNY"
     CURRENCY_TYPE_USD = "CURRENCY_TYPE_USD"
     CURRENCY_TYPE_EUR = "CURRENCY_TYPE_EUR"
@@ -174,45 +208,57 @@ class CurrencyType(StrEnum):
 
 
 class SheetType(StrEnum):
-    dashboard = "dashboard"
-    external = "external"
-    smartsheet = "smartsheet"
+    """子表类型。
+
+    主要出现在查询子表接口返回中，用于区分普通智能表、仪表盘和说明页。
+    """
+
+    dashboard = "dashboard"  # 仪表盘页。
+    external = "external"  # 说明页/外部说明页。
+    smartsheet = "smartsheet"  # 普通智能表子表。
 
 
 class DecimalPlaces(IntEnum):
-    SHOW_ORIGIN = -1
-    INT = 0
-    ONE = 1
-    TWO = 2
-    THREE = 3
-    FOUR = 4
+    """数字、进度、货币、百分比等字段的小数位设置。"""
+
+    SHOW_ORIGIN = -1  # 显示原始值，不强制格式化小数位数。
+    INT = 0  # 显示为整数。
+    ONE = 1  # 保留 1 位小数。
+    TWO = 2  # 保留 2 位小数。
+    THREE = 3  # 保留 3 位小数。
+    FOUR = 4  # 保留 4 位小数。
 
 
 class Style(IntEnum):
-    STYLE_1 = 1
-    STYLE_2 = 2
-    STYLE_3 = 3
-    STYLE_4 = 4
-    STYLE_5 = 5
-    STYLE_6 = 6
-    STYLE_7 = 7
-    STYLE_8 = 8
-    STYLE_9 = 9
-    STYLE_10 = 10
-    STYLE_11 = 11
-    STYLE_12 = 12
-    STYLE_13 = 13
-    STYLE_14 = 14
-    STYLE_15 = 15
-    STYLE_16 = 16
-    STYLE_17 = 17
-    STYLE_18 = 18
-    STYLE_19 = 19
-    STYLE_20 = 20
-    STYLE_21 = 21
-    STYLE_22 = 22
-    STYLE_23 = 23
-    STYLE_24 = 24
-    STYLE_25 = 25
-    STYLE_26 = 26
-    STYLE_27 = 27
+    """单选/多选选项颜色编号。
+
+    企业微信接口使用数值而非语义名称表示色板，这里保留官方编号并补充中文说明。
+    """
+
+    STYLE_1 = 1  # 浅红1
+    STYLE_2 = 2  # 浅橙1
+    STYLE_3 = 3  # 浅天蓝1
+    STYLE_4 = 4  # 浅绿1
+    STYLE_5 = 5  # 浅紫1
+    STYLE_6 = 6  # 浅粉红1
+    STYLE_7 = 7  # 浅灰1
+    STYLE_8 = 8  # 白
+    STYLE_9 = 9  # 灰
+    STYLE_10 = 10  # 浅蓝1
+    STYLE_11 = 11  # 浅蓝2
+    STYLE_12 = 12  # 蓝
+    STYLE_13 = 13  # 浅天蓝2
+    STYLE_14 = 14  # 天蓝
+    STYLE_15 = 15  # 浅绿2
+    STYLE_16 = 16  # 绿
+    STYLE_17 = 17  # 浅红2
+    STYLE_18 = 18  # 红
+    STYLE_19 = 19  # 浅橙2
+    STYLE_20 = 20  # 橙
+    STYLE_21 = 21  # 浅黄1
+    STYLE_22 = 22  # 浅黄2
+    STYLE_23 = 23  # 黄
+    STYLE_24 = 24  # 浅紫2
+    STYLE_25 = 25  # 紫
+    STYLE_26 = 26  # 浅粉红2
+    STYLE_27 = 27  # 粉红

@@ -11,6 +11,12 @@ from .exceptions import WeComAPIError, WeComRequestError
 
 
 class AccessTokenResponse(BaseModel):
+    """`/cgi-bin/gettoken` 接口响应。
+
+    企业微信会返回凭证本身及其秒级有效期。SDK 会基于该结构做本地缓存，
+    并在凭证过期前提前刷新，避免业务请求在边界时刻拿到失效 token。
+    """
+
     errcode: int = 0
     errmsg: str = ""
     access_token: Optional[str] = None
@@ -23,6 +29,7 @@ class AccessTokenProvider:
     说明：
     - 内部会做简单缓存与提前刷新（默认提前 120 秒）。
     - 仅用于企业微信自建应用的 corpid/secret 换取 token 场景。
+    - 企业微信官方文档要求开发者在服务端缓存 token，并在失效时重新获取。
     """
 
     def __init__(
@@ -45,11 +52,20 @@ class AccessTokenProvider:
         self._client = http_client or httpx.Client(base_url=base_url, timeout=timeout)
 
     def close(self) -> None:
+        """关闭内部持有的 HTTP 客户端。
+
+        当调用方复用了外部传入的 `httpx.Client` 时，由调用方自己负责关闭。
+        """
+
         if self._owns_client:
             self._client.close()
 
     def get(self) -> str:
-        """获取可用的 access_token。"""
+        """获取当前可用的 access_token。
+
+        优先返回缓存中的 token；如果缓存不存在或即将过期，则在锁保护下刷新。
+        这样可以避免多线程环境下重复请求 `/cgi-bin/gettoken`。
+        """
 
         if self._token and time.time() < self._expire_at - self._refresh_buffer:
             return self._token
@@ -63,6 +79,8 @@ class AccessTokenProvider:
             return self._token
 
     def _refresh_token(self) -> None:
+        """调用企业微信 `gettoken` 接口刷新缓存中的 access_token。"""
+
         try:
             resp = self._client.get(
                 "/cgi-bin/gettoken",
@@ -86,17 +104,22 @@ class AccessTokenProvider:
             ) from exc
 
         data = AccessTokenResponse.model_validate(payload)
+        # 企业微信官方文档明确要求以 errcode 判断是否成功，errmsg 仅用于辅助排障。
         if data.errcode != 0:
             raise WeComAPIError(data.errcode, data.errmsg, payload)
 
         self._token = data.access_token
         expires_in = int(data.expires_in or 0)
-        # 记录过期时间（秒级）
+        # 记录过期时间（秒级）；后续读取时会结合 refresh_buffer 提前刷新。
         self._expire_at = time.time() + expires_in
 
 
 class WeComClient:
-    """企业微信文档 SDK 客户端（同步版）。"""
+    """企业微信文档 SDK 客户端（同步版）。
+
+    负责统一管理底层 HTTP 连接、access_token 获取逻辑，以及各业务 API 模块。
+    当前默认挂载智能表格内容相关接口：`smartsheet`。
+    """
 
     def __init__(
         self,
@@ -107,7 +130,7 @@ class WeComClient:
         timeout: float = 10.0,
     ) -> None:
         self._http = httpx.Client(base_url=base_url, timeout=timeout)
-        # 复用 httpx.Client 以减少连接开销
+        # 复用 httpx.Client 以减少连接开销，并与 token 获取共用一套超时配置。
         self._token_provider = AccessTokenProvider(
             corp_id,
             corp_secret,
@@ -139,10 +162,17 @@ class WeComClient:
         params: Optional[Dict[str, Any]] = None,
         json: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """统一请求入口，自动注入 access_token 并处理错误。"""
+        """统一发送企业微信 JSON 请求。
+
+        该方法会自动注入 `access_token`，并统一处理三类错误：
+        - 网络层或 HTTP 状态异常；
+        - 响应体不是合法 JSON；
+        - 企业微信返回 `errcode != 0` 的业务错误。
+        """
 
         token = self._token_provider.get()
         request_params = dict(params or {})
+        # 企业微信大多数服务端接口都要求将 access_token 放在查询参数中。
         request_params["access_token"] = token
 
         try:
@@ -164,6 +194,7 @@ class WeComClient:
                 "响应解析失败：不是 JSON", response=response, cause=exc
             ) from exc
 
+        # 根据企业微信全局错误码文档，必须优先使用 errcode 判断业务是否成功。
         if isinstance(payload, dict) and payload.get("errcode", 0) != 0:
             raise WeComAPIError(
                 int(payload.get("errcode", -1)), str(payload.get("errmsg", "")), payload
@@ -173,6 +204,9 @@ class WeComClient:
 
     @staticmethod
     def dump_model(model: BaseModel) -> Dict[str, Any]:
-        """统一的模型序列化，便于后续扩展配置。"""
+        """统一序列化 Pydantic 模型。
+
+        默认使用字段别名并忽略空值，避免把未填写的可选字段透传给企业微信接口。
+        """
 
         return model.model_dump(by_alias=True, exclude_none=True)
