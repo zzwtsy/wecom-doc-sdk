@@ -19,7 +19,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Typing :: Typed",
 ]
-
+urls = { Homepage = "https://github.com/zzwtsy/wecom-doc-sdk", Repository = "https://github.com/zzwtsy/wecom-doc-sdk" }
 dependencies = ["httpx>=0.28.1", "pydantic>=2.12.5"]
 
 [dependency-groups]

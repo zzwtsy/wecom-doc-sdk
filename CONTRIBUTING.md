@@ -79,6 +79,7 @@
 - 分发包检查：`uvx twine check dist/*`
 - 发布到 TestPyPI：`uv publish --index testpypi`
 - 发布到 PyPI：`uv publish`
+- 仓库已提供 GitHub Actions Trusted Publishing 工作流；发布 GitHub Release 后会触发 `.github/workflows/publish.yml` 自动上传到 PyPI
 
 ## 质量检查
 
