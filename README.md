@@ -1,6 +1,6 @@
 # 企业微信文档 SDK
 
-`wecom-doc-sdk` 是一个面向企业微信文档相关服务端 API 的 Python SDK，当前聚焦“文档 -> 管理智能表格内容”能力，并为后续扩展更多文档接口保留了清晰的客户端与模型结构。
+`wecom-doc-sdk` 是一个面向企业微信文档相关服务端 API 的 Python SDK，当前已支持“文档 -> 管理智能表格内容”与“文档 -> 设置文档权限”中的部分能力，并为后续扩展更多文档接口保留了清晰的客户端与模型结构。
 
 ## 特性
 
@@ -13,15 +13,21 @@
 
 ## 当前支持
 
-当前已封装企业微信“管理智能表格内容”中的以下能力：
+当前已封装企业微信以下能力：
 
+- 管理智能表格内容
 - 子表：添加、删除、更新、查询
 - 视图：添加、删除、更新、查询
 - 字段：添加、删除、更新、查询
 - 记录：添加、删除、更新、查询
 - 编组：添加、更新、删除、查询
+- 设置文档权限
+- 获取文档权限信息
+- 修改文档加入规则
+- 修改文档成员与权限
+- 修改文档安全设置
 
-对应入口为 `WeComClient.smartsheet`。
+对应入口为 `WeComClient.smartsheet` 与 `WeComClient.permissions`。
 
 ## 安装
 
@@ -58,6 +64,20 @@ with WeComClient(
 ) as client:
     sheets = client.smartsheet.get_sheet({"docid": "DOCID"})
     print(sheets.ok, sheets.sheet_list)
+```
+
+### 查询文档权限信息
+
+```python
+from wecom_doc_sdk import WeComClient
+
+with WeComClient(
+    corp_id="YOUR_CORP_ID",
+    corp_secret="YOUR_CORP_SECRET",
+) as client:
+    response = client.permissions.get_doc_auth({"docid": "DOCID"})
+
+    print(response.ok, response.access_rule, response.secure_setting)
 ```
 
 ### 使用 Pydantic 模型查询字段
@@ -153,6 +173,7 @@ except WeComRequestError as exc:
 
 - 根包 `wecom_doc_sdk`：`WeComClient`、`AccessTokenProvider`
 - 异常：从 `wecom_doc_sdk.exceptions` 导入 `WeComAPIError`、`WeComRequestError`
+- 文档权限模型：从 `wecom_doc_sdk.models.permissions` 导入
 - 子表模型：从 `wecom_doc_sdk.models.sheets` 导入
 - 视图模型：从 `wecom_doc_sdk.models.views` 导入
 - 字段模型：从 `wecom_doc_sdk.models.fields` 导入
@@ -216,4 +237,4 @@ uv publish
 
 ## 适用范围
 
-这个库当前聚焦企业微信文档能力，尤其是智能表格内容管理，但项目结构已经按“可扩展库”来组织。后续可以在保持现有客户端与模型风格一致的前提下，继续扩展更多企业微信文档相关 API 模块。
+这个库当前聚焦企业微信文档能力，已覆盖智能表格内容管理和部分文档权限管理。后续可以在保持现有客户端与模型风格一致的前提下，继续扩展更多企业微信文档相关 API 模块。
