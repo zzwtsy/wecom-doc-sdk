@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Union
 
+from pydantic import ConfigDict
+
 from .common import WeComBaseModel, WeComBaseResponse
 from .enums import CellValueKeyType
 from .fields import Option
@@ -10,6 +12,9 @@ from .views import FilterSpec
 
 class CellTextValue(WeComBaseModel):
     """文本或文本链接单元格值。"""
+
+    # 记录单元格的对象结构需要可区分，避免被错误解析成其他类型的单元格值。
+    model_config = ConfigDict(extra="forbid")
 
     # `text` 表示普通文本，`url` 表示带跳转链接的文本。
     type: str
@@ -20,6 +25,9 @@ class CellTextValue(WeComBaseModel):
 
 class CellImageValue(WeComBaseModel):
     """图片单元格值。"""
+
+    # 图片、文件等对象字段彼此有重叠风险，这里显式禁止额外字段以提高判别准确性。
+    model_config = ConfigDict(extra="forbid")
 
     # 添加记录时可自定义图片 ID；查询时则为接口返回的图片标识。
     id: Optional[str] = None
@@ -32,6 +40,9 @@ class CellImageValue(WeComBaseModel):
 class CellAttachmentValue(WeComBaseModel):
     """文件单元格值。"""
 
+    # 查询响应里的文件对象字段较固定，禁止额外字段可避免误判为图片等类型。
+    model_config = ConfigDict(extra="forbid")
+
     name: Optional[str] = None
     size: Optional[int] = None
     file_ext: Optional[str] = None
@@ -39,12 +50,15 @@ class CellAttachmentValue(WeComBaseModel):
     file_url: Optional[str] = None
     # 文档、表格、智能表等文件类型编码会通过该字段返回。
     file_type: Optional[str] = None
-    # `1` 表示文件夹，`2` 表示文件。
-    doc_type: Optional[str] = None
+    # `1` 表示文件夹，`2` 表示文件；按文档示例兼容数值语义。
+    doc_type: Optional[int] = None
 
 
 class CellUserValue(WeComBaseModel):
     """人员单元格值。"""
+
+    # 人员单元格返回结构固定，禁止额外字段可减少联合类型误判。
+    model_config = ConfigDict(extra="forbid")
 
     user_id: Optional[str] = None
     # 外部联系人的临时 ID；跨智能表不稳定，必要时需再做转换。
@@ -58,6 +72,9 @@ class CellUserValue(WeComBaseModel):
 class CellUrlValue(WeComBaseModel):
     """超链接单元格值。"""
 
+    # 链接对象结构简单且固定，禁止额外字段可避免误入其他对象分支。
+    model_config = ConfigDict(extra="forbid")
+
     # 当前接口虽然用数组承载，但官方仅建议传入一个链接对象。
     type: str = "url"
     text: Optional[str] = None
@@ -66,6 +83,9 @@ class CellUrlValue(WeComBaseModel):
 
 class CellLocationValue(WeComBaseModel):
     """地理位置单元格值。"""
+
+    # 地理位置字段依赖固定键集合，禁止额外字段有助于区分联合类型。
+    model_config = ConfigDict(extra="forbid")
 
     # 目前仅支持腾讯地图来源，文档约定固定传 `1`。
     source_type: Optional[int] = None
@@ -77,6 +97,9 @@ class CellLocationValue(WeComBaseModel):
 
 class CellAutoNumberValue(WeComBaseModel):
     """自动编号单元格值。"""
+
+    # 自动编号对象字段固定，禁止额外字段可减少与其他对象数组混淆。
+    model_config = ConfigDict(extra="forbid")
 
     # 序号的原始值。
     seq: Optional[str] = None
@@ -104,6 +127,9 @@ CellValue = Union[
 
 # key 可以是字段标题，也可以是字段 ID，具体取决于请求里的 `key_type`。
 RecordValues = Dict[str, CellValue]
+# 查询记录时，企业微信可能会对空单元格直接返回 `null`。
+QueryCellValue = CellValue | None
+QueryRecordValues = Dict[str, QueryCellValue]
 
 
 class AddRecord(WeComBaseModel):
@@ -129,6 +155,8 @@ class CommonRecord(WeComBaseModel):
 class Record(CommonRecord):
     """查询记录接口返回的完整记录结构。"""
 
+    # 查询接口返回的空单元格可能为 `null`，因此查询侧的 values 需要允许 `None`。
+    values: QueryRecordValues
     create_time: Optional[str] = None
     update_time: Optional[str] = None
     creator_name: Optional[str] = None
