@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WeComBaseModel(BaseModel):
@@ -20,8 +20,8 @@ class WeComBaseModel(BaseModel):
 class WeComBaseResponse(WeComBaseModel):
     """企业微信通用响应结构。"""
 
-    errcode: int = 0
-    errmsg: str = ""
+    errcode: int = Field(default=0, description="企业微信错误码，0 表示成功")
+    errmsg: str = Field(default="", description="企业微信错误信息")
 
     @property
     def ok(self) -> bool:
@@ -40,8 +40,8 @@ class PageInfo(WeComBaseModel):
     """
 
     # 当前查询条件下的总记录数，通常是筛选后的结果总量。
-    total: Optional[int] = None
+    total: Optional[int] = Field(default=None, description="当前条件下的总记录数")
     # 是否还有下一页数据可继续拉取。
-    has_more: Optional[bool] = None
+    has_more: Optional[bool] = Field(default=None, description="是否还有下一页")
     # 下一次查询应使用的偏移量。
-    next: Optional[int] = None
+    next: Optional[int] = Field(default=None, description="下一页偏移量")

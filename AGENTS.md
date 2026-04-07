@@ -5,7 +5,7 @@
 ## 项目概览
 
 - 项目：企业微信文档 SDK（Python）
-- 目标：封装企业微信文档相关 API（当前聚焦“管理智能表格内容”）
+- 目标：封装企业微信文档相关 API（当前已覆盖智能表格内容、文档权限、文档管理、文档内容，并持续扩展）
 - 技术栈：`httpx` + `pydantic` + 完整类型标注
 - 发布包名：`wecom-doc-sdk`
 - Python 导入名：`wecom_doc_sdk`
@@ -30,6 +30,9 @@
 - HTTP：使用 `httpx.Client/AsyncClient` 复用连接；统一超时与错误处理
 - Pydantic：v2 写法；序列化用 `model_dump()`，校验用 `model_validate()`
 - Pydantic 命名冲突：若模块内需要保留业务别名 `Field`，统一将 Pydantic 的 `Field` 导入为 `PydanticField`
+- 字段文档：公开请求/响应模型字段应提供 `Field(description="...")`，用于 IDE 悬停与文档生成
+- 约束落地：文档中的“二选一/互斥/至少一项/条件必填”需通过 `model_validator` 等方式显式校验
+- 枚举规范：默认使用简单 `Enum/IntEnum` 成员值，不使用 `label` 扩展字段；语义说明优先放在类 docstring（不依赖尾行注释）
 - 错误处理：统一沿用 `WeComAPIError` / `WeComRequestError`，并以 `errcode == 0` 作为业务成功判断标准
 - 扩展性：新增接口按模块拆分，避免把逻辑堆在单文件
 - 导出约束：根包 `wecom_doc_sdk` 保持精简，只导出客户端等入口对象；异常与请求/响应模型分别从对应子模块导入

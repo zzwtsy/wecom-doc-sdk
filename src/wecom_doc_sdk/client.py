@@ -118,7 +118,8 @@ class WeComClient:
     """企业微信文档 SDK 客户端（同步版）。
 
     负责统一管理底层 HTTP 连接、access_token 获取逻辑，以及各业务 API 模块。
-    当前默认挂载智能表格内容接口 `smartsheet`，以及设置文档权限接口 `permissions`。
+    当前默认挂载文档管理接口 `documents`、文档内容接口 `document_content`、
+    智能表格内容接口 `smartsheet`，以及设置文档权限接口 `permissions`。
     """
 
     def __init__(
@@ -139,9 +140,13 @@ class WeComClient:
             http_client=self._http,
         )
         # 延迟导入避免循环依赖
+        from .apis.document_content import DocumentContentAPI
+        from .apis.documents import DocumentsAPI
         from .apis.permissions import PermissionsAPI
         from .apis.smartsheet import SmartSheetAPI
 
+        self.documents = DocumentsAPI(self)
+        self.document_content = DocumentContentAPI(self)
         self.permissions = PermissionsAPI(self)
         self.smartsheet = SmartSheetAPI(self)
 

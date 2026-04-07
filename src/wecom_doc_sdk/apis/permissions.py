@@ -6,14 +6,24 @@ from pydantic import BaseModel
 
 from ..client import WeComClient
 from ..models.permissions import (
+    CreateSheetPrivRuleRequest,
+    CreateSheetPrivRuleResponse,
+    DeleteSheetPrivRulesRequest,
+    DeleteSheetPrivRulesResponse,
     GetDocAuthRequest,
     GetDocAuthResponse,
+    GetSheetPrivRequest,
+    GetSheetPrivResponse,
     ModifyDocJoinRuleRequest,
     ModifyDocJoinRuleResponse,
     ModifyDocMemberRequest,
     ModifyDocMemberResponse,
     ModifyDocSafetySettingRequest,
     ModifyDocSafetySettingResponse,
+    ModifySheetPrivRuleMemberRequest,
+    ModifySheetPrivRuleMemberResponse,
+    UpdateSheetPrivRequest,
+    UpdateSheetPrivResponse,
 )
 
 TModel = TypeVar("TModel", bound=BaseModel)
@@ -81,3 +91,63 @@ class PermissionsAPI:
             json=self._client.dump_model(req),
         )
         return ModifyDocSafetySettingResponse.model_validate(data)
+
+    def get_sheet_priv(
+        self, request: GetSheetPrivRequest | dict[str, Any]
+    ) -> GetSheetPrivResponse:
+        """查询智能表格子表内容权限。"""
+        req = self._ensure_model(GetSheetPrivRequest, request)
+        data = self._client.request_json(
+            "POST",
+            "/cgi-bin/wedoc/smartsheet/content_priv/get_sheet_priv",
+            json=self._client.dump_model(req),
+        )
+        return GetSheetPrivResponse.model_validate(data)
+
+    def update_sheet_priv(
+        self, request: UpdateSheetPrivRequest | dict[str, Any]
+    ) -> UpdateSheetPrivResponse:
+        """设置全员权限或额外权限的子表权限详情。"""
+        req = self._ensure_model(UpdateSheetPrivRequest, request)
+        data = self._client.request_json(
+            "POST",
+            "/cgi-bin/wedoc/smartsheet/content_priv/update_sheet_priv",
+            json=self._client.dump_model(req),
+        )
+        return UpdateSheetPrivResponse.model_validate(data)
+
+    def create_sheet_priv_rule(
+        self, request: CreateSheetPrivRuleRequest | dict[str, Any]
+    ) -> CreateSheetPrivRuleResponse:
+        """新增智能表格指定成员额外权限。"""
+        req = self._ensure_model(CreateSheetPrivRuleRequest, request)
+        data = self._client.request_json(
+            "POST",
+            "/cgi-bin/wedoc/smartsheet/content_priv/create_rule",
+            json=self._client.dump_model(req),
+        )
+        return CreateSheetPrivRuleResponse.model_validate(data)
+
+    def modify_sheet_priv_rule_member(
+        self, request: ModifySheetPrivRuleMemberRequest | dict[str, Any]
+    ) -> ModifySheetPrivRuleMemberResponse:
+        """更新智能表格指定成员额外权限的生效成员。"""
+        req = self._ensure_model(ModifySheetPrivRuleMemberRequest, request)
+        data = self._client.request_json(
+            "POST",
+            "/cgi-bin/wedoc/smartsheet/content_priv/mod_rule_member",
+            json=self._client.dump_model(req),
+        )
+        return ModifySheetPrivRuleMemberResponse.model_validate(data)
+
+    def delete_sheet_priv_rules(
+        self, request: DeleteSheetPrivRulesRequest | dict[str, Any]
+    ) -> DeleteSheetPrivRulesResponse:
+        """删除智能表格指定成员额外权限规则。"""
+        req = self._ensure_model(DeleteSheetPrivRulesRequest, request)
+        data = self._client.request_json(
+            "POST",
+            "/cgi-bin/wedoc/smartsheet/content_priv/delete_rule",
+            json=self._client.dump_model(req),
+        )
+        return DeleteSheetPrivRulesResponse.model_validate(data)

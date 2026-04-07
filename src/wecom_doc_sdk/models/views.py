@@ -22,35 +22,35 @@ class StringValue(WeComBaseModel):
     适用于文本、超链接、电话、邮箱、地理位置、单选、多选等字段。
     """
 
-    value: List[str]
+    value: List[str] = Field(description="字符串筛选值列表")
 
 
 class NumberValue(WeComBaseModel):
     """数字型筛选值。"""
 
-    value: float
+    value: float = Field(description="数字筛选值")
 
 
 class BoolValue(WeComBaseModel):
     """布尔型筛选值。"""
 
-    value: bool
+    value: bool = Field(description="布尔筛选值")
 
 
 class UserValue(WeComBaseModel):
     """成员型筛选值。"""
 
     # 成员、创建人、最后编辑人等字段统一使用成员 ID 数组。
-    value: List[str]
+    value: List[str] = Field(description="成员 ID 列表")
 
 
 class FilterDateTimeValue(WeComBaseModel):
     """日期型筛选值。"""
 
     # 日期筛选的模式，如今天、昨天或具体日期。
-    type: DateTimeType
+    type: DateTimeType = Field(description="日期筛选类型")
     # 当 `type` 为具体日期时使用毫秒级时间戳列表。
-    value: List[str]
+    value: List[str] = Field(description="日期筛选值列表")
 
 
 class Condition(WeComBaseModel):
@@ -60,9 +60,9 @@ class Condition(WeComBaseModel):
     `operator` 与对应的 `*_value` 组合合法。
     """
 
-    field_id: str
-    field_type: Optional[FieldType] = None
-    operator: Operator
+    field_id: str = Field(description="字段 ID")
+    field_type: Optional[FieldType] = Field(default=None, description="字段类型")
+    operator: Operator = Field(description="筛选操作符")
     string_value: Optional[StringValue] = None
     number_value: Optional[NumberValue] = None
     bool_value: Optional[BoolValue] = None
@@ -101,8 +101,8 @@ class FilterSpec(WeComBaseModel):
     """视图或记录查询使用的过滤配置。"""
 
     # 多个条件之间按 AND 还是 OR 组合。
-    conjunction: Conjunction
-    conditions: List[Condition]
+    conjunction: Conjunction = Field(description="条件连接符")
+    conditions: List[Condition] = Field(description="筛选条件列表")
 
 
 class ViewColorCondition(WeComBaseModel):
@@ -150,10 +150,10 @@ class ViewProperty(WeComBaseModel):
 class View(WeComBaseModel):
     """视图信息。"""
 
-    view_id: str
-    view_title: str
-    view_type: ViewType
-    property: Optional[ViewProperty] = None
+    view_id: str = Field(description="视图 ID")
+    view_title: str = Field(description="视图标题")
+    view_type: ViewType = Field(description="视图类型")
+    property: Optional[ViewProperty] = Field(default=None, description="视图属性")
 
 
 class GanttViewProperty(WeComBaseModel):
@@ -175,10 +175,10 @@ class CalendarViewProperty(WeComBaseModel):
 class AddViewRequest(WeComBaseModel):
     """添加视图请求体。"""
 
-    docid: str
-    sheet_id: str
-    view_title: str
-    view_type: ViewType
+    docid: str = Field(description="文档 ID")
+    sheet_id: str = Field(description="子表 ID")
+    view_title: str = Field(description="视图标题")
+    view_type: ViewType = Field(description="视图类型")
     # 仅在添加甘特视图时使用。
     property_gantt: Optional[GanttViewProperty] = None
     # 仅在添加日历视图时使用。
@@ -188,15 +188,15 @@ class AddViewRequest(WeComBaseModel):
 class AddViewResponse(WeComBaseResponse):
     """添加视图响应体。"""
 
-    view: Optional[View] = None
+    view: Optional[View] = Field(default=None, description="新增视图信息")
 
 
 class DeleteViewsRequest(WeComBaseModel):
     """删除视图请求体。"""
 
-    docid: str
-    sheet_id: str
-    view_ids: List[str]
+    docid: str = Field(description="文档 ID")
+    sheet_id: str = Field(description="子表 ID")
+    view_ids: List[str] = Field(description="待删除视图 ID 列表")
 
 
 class DeleteViewsResponse(WeComBaseResponse):
@@ -208,36 +208,40 @@ class DeleteViewsResponse(WeComBaseResponse):
 class UpdateViewRequest(WeComBaseModel):
     """更新视图请求体。"""
 
-    docid: str
-    sheet_id: str
-    view_id: str
-    view_title: Optional[str] = None
+    docid: str = Field(description="文档 ID")
+    sheet_id: str = Field(description="子表 ID")
+    view_id: str = Field(description="视图 ID")
+    view_title: Optional[str] = Field(default=None, description="更新后的视图标题")
     # 支持更新排序、过滤、分组、字段显示、冻结列和填色等属性。
-    property: Optional[ViewProperty] = None
+    property: Optional[ViewProperty] = Field(
+        default=None, description="更新后的视图属性"
+    )
 
 
 class UpdateViewResponse(WeComBaseResponse):
     """更新视图响应体。"""
 
-    view: Optional[View] = None
+    view: Optional[View] = Field(default=None, description="更新后的视图信息")
 
 
 class GetViewsRequest(WeComBaseModel):
     """查询视图请求体。"""
 
-    docid: str
-    sheet_id: str
+    docid: str = Field(description="文档 ID")
+    sheet_id: str = Field(description="子表 ID")
     # 为空时查询子表中的全部视图。
-    view_ids: Optional[List[str]] = None
-    offset: Optional[int] = None
+    view_ids: Optional[List[str]] = Field(
+        default=None, description="指定查询的视图 ID 列表"
+    )
+    offset: Optional[int] = Field(default=None, description="分页偏移量")
     # 单次 `limit` 最大为 1000；为 0 或不传时由接口按默认规则返回。
-    limit: Optional[int] = None
+    limit: Optional[int] = Field(default=None, description="分页大小")
 
 
 class GetViewsResponse(WeComBaseResponse):
     """查询视图响应体。"""
 
-    total: Optional[int] = None
-    has_more: Optional[bool] = None
-    next: Optional[int] = None
-    views: Optional[List[View]] = None
+    total: Optional[int] = Field(default=None, description="总数量")
+    has_more: Optional[bool] = Field(default=None, description="是否有下一页")
+    next: Optional[int] = Field(default=None, description="下一页偏移量")
+    views: Optional[List[View]] = Field(default=None, description="视图列表")

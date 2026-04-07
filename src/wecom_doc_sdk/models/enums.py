@@ -178,7 +178,7 @@ class NumberRuleType(StrEnum):
 
 
 class CurrencyType(StrEnum):
-    """货币字段支持的货币符号类型。"""
+    """货币字段支持的货币符号类型。成员值为官方货币编码。"""
 
     CURRENCY_TYPE_CNY = "CURRENCY_TYPE_CNY"
     CURRENCY_TYPE_USD = "CURRENCY_TYPE_USD"
@@ -213,20 +213,20 @@ class SheetType(StrEnum):
     主要出现在查询子表接口返回中，用于区分普通智能表、仪表盘和说明页。
     """
 
-    dashboard = "dashboard"  # 仪表盘页。
-    external = "external"  # 说明页/外部说明页。
-    smartsheet = "smartsheet"  # 普通智能表子表。
+    dashboard = "dashboard"
+    external = "external"
+    smartsheet = "smartsheet"
 
 
 class DecimalPlaces(IntEnum):
     """数字、进度、货币、百分比等字段的小数位设置。"""
 
-    SHOW_ORIGIN = -1  # 显示原始值，不强制格式化小数位数。
-    INT = 0  # 显示为整数。
-    ONE = 1  # 保留 1 位小数。
-    TWO = 2  # 保留 2 位小数。
-    THREE = 3  # 保留 3 位小数。
-    FOUR = 4  # 保留 4 位小数。
+    SHOW_ORIGIN = -1
+    INT = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
 
 
 class Style(IntEnum):
@@ -262,3 +262,139 @@ class Style(IntEnum):
     STYLE_25 = 25  # 紫
     STYLE_26 = 26  # 浅粉红2
     STYLE_27 = 27  # 粉红
+
+
+class DocType(IntEnum):
+    """文档类型枚举。`3=文档`、`4=表格`、`10=智能表格`。"""
+
+    DOC = 3
+    SHEET = 4
+    SMARTSHEET = 10
+
+
+class DocMemberType(IntEnum):
+    """文档成员类型。"""
+
+    USER = 1
+    DEPARTMENT = 2
+
+
+class DocMemberAuth(IntEnum):
+    """文档成员权限类型。"""
+
+    READONLY = 1
+    READWRITE = 2
+    ADMIN = 7
+
+
+class SheetPrivRuleType(IntEnum):
+    """智能表内容权限规则类型。"""
+
+    ALL_MEMBERS = 1
+    EXTRA = 2
+
+
+class SheetPrivType(IntEnum):
+    """智能表子表内容权限类型。"""
+
+    ALL = 1
+    EDITABLE = 2
+    VIEW_ONLY = 3
+    NONE = 4
+
+
+class SheetPrivFieldRangeType(IntEnum):
+    """字段权限作用范围。"""
+
+    ALL_FIELDS = 1
+    PART_FIELDS = 2
+
+
+class SheetPrivRecordRangeType(IntEnum):
+    """记录权限作用范围。"""
+
+    ALL_RECORDS = 1
+    ANY_CONDITION = 2
+    ALL_CONDITIONS = 3
+
+
+class SheetPrivRecordOperType(IntEnum):
+    """记录条件判断类型。"""
+
+    CONTAINS_SELF = 1
+    CONTAINS_VALUE = 2
+    NOT_CONTAINS_VALUE = 3
+    EQUALS_VALUE = 4
+    NOT_EQUALS_VALUE = 5
+    IS_EMPTY = 6
+    NOT_EMPTY = 7
+
+
+class SheetPrivRecordOtherPriv(IntEnum):
+    """记录不满足条件时的权限。"""
+
+    NOT_EDITABLE = 1
+    NOT_VISIBLE = 2
+
+
+class DocJoinRuleAuth(IntEnum):
+    """文档加入后可获得的权限类型。"""
+
+    READONLY = 1
+    READWRITE = 2
+
+
+class CoAuthType(IntEnum):
+    """文档查看权限的共享对象类型。"""
+
+    DEPARTMENT = 2
+
+
+class DocWatermarkMarginType(IntEnum):
+    """文档水印边距样式。"""
+
+    TYPE_1 = 1
+    TYPE_2 = 2
+
+
+class CellTextType(StrEnum):
+    """文本单元格对象类型。"""
+
+    TEXT = "text"
+    URL = "url"
+
+
+class CellAttachmentDocType(IntEnum):
+    """附件对象类型。"""
+
+    FOLDER = 1
+    FILE = 2
+
+
+class CellLocationSourceType(IntEnum):
+    """地理位置来源类型。"""
+
+    TENCENT_MAP = 1
+
+
+class CellUserIdType(IntEnum):
+    """人员值来源类型。"""
+
+    USER = 1
+    TMP_EXTERNAL_USER = 2
+    AGENT = 3
+    SYSTEM = 4
+
+
+class DocumentNodeType(StrEnum):
+    """文档节点类型。"""
+
+    DOCUMENT = "Document"
+    MAIN_STORY = "MainStory"
+    SECTION = "Section"
+    PARAGRAPH = "Paragraph"
+    TABLE = "Table"
+    TABLE_ROW = "TableRow"
+    TABLE_CELL = "TableCell"
+    TEXT = "Text"
+    DRAWING = "Drawing"

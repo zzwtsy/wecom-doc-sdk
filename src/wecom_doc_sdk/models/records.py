@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from .common import WeComBaseModel, WeComBaseResponse
-from .enums import CellValueKeyType
+from .enums import (
+    CellAttachmentDocType,
+    CellLocationSourceType,
+    CellTextType,
+    CellUserIdType,
+    CellValueKeyType,
+)
 from .fields import Option
 from .views import FilterSpec
 
@@ -17,10 +23,10 @@ class CellTextValue(WeComBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # `text` 表示普通文本，`url` 表示带跳转链接的文本。
-    type: str
-    text: Optional[str] = None
+    type: CellTextType = Field(description="文本值类型")
+    text: Optional[str] = Field(default=None, description="文本内容")
     # 当 `type` 为 `url` 时表示跳转地址。
-    link: Optional[str] = None
+    link: Optional[str] = Field(default=None, description="链接地址（type=url 时有效）")
 
 
 class CellImageValue(WeComBaseModel):
@@ -30,11 +36,11 @@ class CellImageValue(WeComBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # 添加记录时可自定义图片 ID；查询时则为接口返回的图片标识。
-    id: Optional[str] = None
-    title: Optional[str] = None
-    image_url: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
+    id: Optional[str] = Field(default=None, description="图片 ID")
+    title: Optional[str] = Field(default=None, description="图片标题")
+    image_url: Optional[str] = Field(default=None, description="图片 URL")
+    width: Optional[int] = Field(default=None, description="图片宽度")
+    height: Optional[int] = Field(default=None, description="图片高度")
 
 
 class CellAttachmentValue(WeComBaseModel):
@@ -43,15 +49,17 @@ class CellAttachmentValue(WeComBaseModel):
     # 查询响应里的文件对象字段较固定，禁止额外字段可避免误判为图片等类型。
     model_config = ConfigDict(extra="forbid")
 
-    name: Optional[str] = None
-    size: Optional[int] = None
-    file_ext: Optional[str] = None
-    file_id: Optional[str] = None
-    file_url: Optional[str] = None
+    name: Optional[str] = Field(default=None, description="附件名称")
+    size: Optional[int] = Field(default=None, description="附件大小（字节）")
+    file_ext: Optional[str] = Field(default=None, description="附件扩展名")
+    file_id: Optional[str] = Field(default=None, description="附件 ID")
+    file_url: Optional[str] = Field(default=None, description="附件 URL")
     # 文档、表格、智能表等文件类型编码会通过该字段返回。
-    file_type: Optional[str] = None
+    file_type: Optional[str] = Field(default=None, description="附件文件类型编码")
     # `1` 表示文件夹，`2` 表示文件；按文档示例兼容数值语义。
-    doc_type: Optional[int] = None
+    doc_type: Optional[CellAttachmentDocType] = Field(
+        default=None, description="附件对象类型"
+    )
 
 
 class CellUserValue(WeComBaseModel):
@@ -60,13 +68,17 @@ class CellUserValue(WeComBaseModel):
     # 人员单元格返回结构固定，禁止额外字段可减少联合类型误判。
     model_config = ConfigDict(extra="forbid")
 
-    user_id: Optional[str] = None
+    user_id: Optional[str] = Field(default=None, description="成员 user_id")
     # 外部联系人的临时 ID；跨智能表不稳定，必要时需再做转换。
-    tmp_external_userid: Optional[str] = None
+    tmp_external_userid: Optional[str] = Field(
+        default=None, description="外部联系人临时 ID"
+    )
     # 当值来源于应用时会返回应用 ID。
-    agentid: Optional[int] = None
+    agentid: Optional[int] = Field(default=None, description="应用 agentid")
     # 标识本条值是成员、外部联系人、应用还是系统自动写入。
-    id_type: Optional[int] = None
+    id_type: Optional[CellUserIdType] = Field(
+        default=None, description="人员值来源类型"
+    )
 
 
 class CellUrlValue(WeComBaseModel):
@@ -76,9 +88,9 @@ class CellUrlValue(WeComBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # 当前接口虽然用数组承载，但官方仅建议传入一个链接对象。
-    type: str = "url"
-    text: Optional[str] = None
-    link: Optional[str] = None
+    type: CellTextType = Field(default=CellTextType.URL, description="固定为 url")
+    text: Optional[str] = Field(default=None, description="展示文本")
+    link: Optional[str] = Field(default=None, description="链接地址")
 
 
 class CellLocationValue(WeComBaseModel):
@@ -88,11 +100,13 @@ class CellLocationValue(WeComBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # 目前仅支持腾讯地图来源，文档约定固定传 `1`。
-    source_type: Optional[int] = None
-    id: Optional[str] = None
-    latitude: Optional[str] = None
-    longitude: Optional[str] = None
-    title: Optional[str] = None
+    source_type: Optional[CellLocationSourceType] = Field(
+        default=None, description="地理位置来源类型"
+    )
+    id: Optional[str] = Field(default=None, description="位置对象 ID")
+    latitude: Optional[str] = Field(default=None, description="纬度")
+    longitude: Optional[str] = Field(default=None, description="经度")
+    title: Optional[str] = Field(default=None, description="位置标题")
 
 
 class CellAutoNumberValue(WeComBaseModel):
@@ -102,9 +116,9 @@ class CellAutoNumberValue(WeComBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # 序号的原始值。
-    seq: Optional[str] = None
+    seq: Optional[str] = Field(default=None, description="自动编号原始序号")
     # 展示给用户看的格式化文本。
-    text: Optional[str] = None
+    text: Optional[str] = Field(default=None, description="自动编号展示文本")
 
 
 # 记录单元格会随字段类型返回完全不同的 JSON 结构。
@@ -135,21 +149,21 @@ QueryRecordValues = Dict[str, QueryCellValue]
 class AddRecord(WeComBaseModel):
     """新增记录项。"""
 
-    values: RecordValues
+    values: RecordValues = Field(description="记录字段值")
 
 
 class UpdateRecord(WeComBaseModel):
     """更新记录项。"""
 
-    record_id: str
-    values: RecordValues
+    record_id: str = Field(description="记录 ID")
+    values: RecordValues = Field(description="记录字段值")
 
 
 class CommonRecord(WeComBaseModel):
     """新增/更新记录接口共用的记录结构。"""
 
-    record_id: str
-    values: RecordValues
+    record_id: str = Field(description="记录 ID")
+    values: RecordValues = Field(description="记录字段值")
 
 
 class Record(CommonRecord):

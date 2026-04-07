@@ -8,10 +8,20 @@ from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.apis import PermissionsAPI
 from wecom_doc_sdk.models.permissions import (
     CoAuthDepartment,
+    CreateSheetPrivRuleRequest,
     DocWatermark,
     GetDocAuthRequest,
+    GetSheetPrivRequest,
     ModifyDocJoinRuleRequest,
     ModifyDocSafetySettingRequest,
+    ModifySheetPrivRuleMemberRequest,
+    SheetPrivFieldPriv,
+    SheetPrivFieldRule,
+    SheetPrivItem,
+    SheetPrivMemberRange,
+    SheetPrivRecordPriv,
+    SheetPrivRecordRule,
+    UpdateSheetPrivRequest,
 )
 
 
@@ -202,3 +212,150 @@ def test_modify_doc_safety_setting_uses_official_safty_path(
             "text": "classified",
         },
     }
+
+
+def test_get_sheet_priv_parses_rule_list(client: WeComClient) -> None:
+    """查询智能表权限应命中正确路径并解析规则列表。"""
+
+    captured = _bind_request_json(
+        client,
+        {
+            "errcode": 0,
+            "errmsg": "ok",
+            "rule_list": [
+                {
+                    "rule_id": 1,
+                    "type": 1,
+                    "name": "全员权限",
+                    "priv_list": [{"sheet_id": "sheet-1", "priv": 2}],
+                }
+            ],
+        },
+    )
+
+    response = client.permissions.get_sheet_priv(
+        GetSheetPrivRequest(docid="DOCID", type=1)
+    )
+
+    assert response.ok is True
+    assert captured["path"] == "/cgi-bin/wedoc/smartsheet/content_priv/get_sheet_priv"
+    assert captured["json"] == {"docid": "DOCID", "type": 1}
+    assert response.rule_list is not None
+    assert response.rule_list[0].name == "全员权限"
+
+
+def test_update_sheet_priv_serializes_nested_rules(client: WeComClient) -> None:
+    """更新智能表权限应正确序列化嵌套字段与记录规则。"""
+
+    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+
+    response = client.permissions.update_sheet_priv(
+        UpdateSheetPrivRequest(
+            docid="DOCID",
+            type=2,
+            rule_id=3,
+            name="项目组权限",
+            priv_list=[
+                SheetPrivItem(
+                    sheet_id="sheet-1",
+                    priv=2,
+                    can_insert_record=True,
+                    field_priv=SheetPrivFieldPriv(
+                        field_range_type=2,
+                        field_rule_list=[
+                            SheetPrivFieldRule(
+                                field_id="field-1",
+                                field_type="FIELD_TYPE_TEXT",
+                                can_edit=True,
+                                can_insert=True,
+                                can_view=True,
+                            )
+                        ],
+                    ),
+                    record_priv=SheetPrivRecordPriv(
+                        record_range_type=2,
+                        record_rule_list=[
+                            SheetPrivRecordRule(
+                                field_id="CREATED_USER",
+                                oper_type=1,
+                            )
+                        ],
+                        other_priv=1,
+                    ),
+                )
+            ],
+        )
+    )
+
+    assert response.ok is True
+    assert (
+        captured["path"] == "/cgi-bin/wedoc/smartsheet/content_priv/update_sheet_priv"
+    )
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "type": 2,
+        "rule_id": 3,
+        "name": "项目组权限",
+        "priv_list": [
+            {
+                "sheet_id": "sheet-1",
+                "priv": 2,
+                "can_insert_record": True,
+                "field_priv": {
+                    "field_range_type": 2,
+                    "field_rule_list": [
+                        {
+                            "field_id": "field-1",
+                            "field_type": "FIELD_TYPE_TEXT",
+                            "can_edit": True,
+                            "can_insert": True,
+                            "can_view": True,
+                        }
+                    ],
+                },
+                "record_priv": {
+                    "record_range_type": 2,
+                    "record_rule_list": [{"field_id": "CREATED_USER", "oper_type": 1}],
+                    "other_priv": 1,
+                },
+            }
+        ],
+    }
+
+
+def test_sheet_priv_rule_crud_accepts_dict_and_model(client: WeComClient) -> None:
+    """额外权限规则增删改成员接口应支持模型与 dict 入参。"""
+
+    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok", "rule_id": 9})
+    create_resp = client.permissions.create_sheet_priv_rule(
+        CreateSheetPrivRuleRequest(docid="DOCID", name="研发组")
+    )
+    assert create_resp.rule_id == 9
+    assert captured["path"] == "/cgi-bin/wedoc/smartsheet/content_priv/create_rule"
+    assert captured["json"] == {"docid": "DOCID", "name": "研发组"}
+
+    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    modify_resp = client.permissions.modify_sheet_priv_rule_member(
+        ModifySheetPrivRuleMemberRequest(
+            docid="DOCID",
+            rule_id=9,
+            add_member_range=SheetPrivMemberRange(userid_list=["u1"]),
+            del_member_range=SheetPrivMemberRange(userid_list=["u2"]),
+        )
+    )
+    assert modify_resp.ok is True
+    assert captured["path"] == "/cgi-bin/wedoc/smartsheet/content_priv/mod_rule_member"
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "rule_id": 9,
+        "add_member_range": {"userid_list": ["u1"]},
+        "del_member_range": {"userid_list": ["u2"]},
+    }
+
+    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    delete_resp = client.permissions.delete_sheet_priv_rules(
+        {"docid": "DOCID", "rule_id_list": [9]}
+    )
+    assert delete_resp.ok is True
+    assert captured["path"] == "/cgi-bin/wedoc/smartsheet/content_priv/delete_rule"
+    assert captured["json"] == {"docid": "DOCID", "rule_id_list": [9]}

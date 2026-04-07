@@ -4,7 +4,7 @@
 
 ## 开发环境
 
-- Python 版本：3.10（与项目 `pyproject.toml` 对齐）
+- Python 版本：`>=3.10`（以 `pyproject.toml` 为准）
 - 建议使用 `uv` 或虚拟环境（`venv`/`conda`）隔离依赖
 - 依赖安装（开发环境）：`uv sync --dev`
 - 发布包名为 `wecom-doc-sdk`，Python 导入名为 `wecom_doc_sdk`
@@ -32,11 +32,14 @@
 - 所有函数与方法需要完整类型标注
 - 公开接口必须明确输入与返回类型
 - 优先使用 `typing` 中的显式类型（如 `Sequence`、`Mapping`）
+- 文档中出现“二选一/至少一项/互斥/条件必填”时，需在模型层通过 `model_validator`（或等效机制）显式校验
+- 枚举默认采用“简单成员值”写法，不引入 `label` 等运行时展示字段；优先通过枚举类 docstring 表达语义，避免依赖尾行注释
 
 ## Pydantic 规范（v2）
 
 - 模型统一继承 `pydantic.BaseModel`
 - 字段别名、默认值、描述使用 `Field`
+- 新增或修改公开请求/响应模型字段时，默认应补充 `Field(description="...")`（动态字段除外，需写注释说明原因）
 - 序列化/反序列化：输出用 `model_dump()`，输入用 `model_validate()`
 - 如果模块内需要保留业务别名 `Field`，则统一使用 `from pydantic import Field as PydanticField`，避免与业务模型命名冲突
 
@@ -59,6 +62,8 @@
 - 使用 `pytest`，测试文件以 `test_*.py` 命名
 - 测试目录统一放在 `tests/`
 - 新增接口应配套至少 1 个核心路径测试
+- 涉及模型约束时，至少补 1 个失败路径测试（例如二选一校验失败）
+- 新增 API 同时支持 `dict` 与模型对象入参时，建议覆盖两种入参形式
 
 ## Git 流程与提交规范
 
@@ -88,3 +93,44 @@
 - 代码格式：`uv run black --check .`
 - 类型检查：`uv run ty check`
 - 测试：`uv run pytest`
+
+## 注释最佳实践（Python）
+
+- 总原则：注释应解释“为什么/约束/边界”，避免逐行复述代码在“做什么”
+- 类型优先：能通过类型标注表达的语义，不再用注释重复
+- 函数与类：公开 API 必须包含 docstring，建议 1-3 行说明用途、关键参数和返回语义
+- 模型字段：优先使用 `Field(description="...")` 提供 IDE 悬停说明
+- 行内注释：仅在复杂分支、外部接口兼容、性能与并发取舍等场景使用
+- 可空字段：注释需明确“为空时行为”或“何时必填”
+- 枚举字段：注释描述业务语义，不重复完整枚举值列表
+- TODO 规范：使用 `TODO(姓名/日期): 说明`，避免无上下文 TODO
+- Enum 约定：默认不使用 `label` 扩展字段，保持 `Enum/IntEnum` 成员仅承载协议值
+- Enum 注释：以“类 docstring”为主，尾行注释仅用于特殊兼容说明，不作为主要语义承载
+
+### 推荐写法
+
+```python
+class ExampleRequest(BaseModel):
+    docid: str = Field(description="文档 ID")
+    formid: str | None = Field(default=None, description="收集表 ID，可选")
+```
+
+```python
+def fetch_doc(docid: str) -> DocInfo:
+    """查询文档基础信息并返回结构化结果。"""
+```
+
+### 不推荐写法
+
+```python
+# 给变量赋值
+docid = "xxx"
+```
+
+## PR 自检清单（建议）
+
+- [ ] 新增/修改的公开模型字段已补 `Field(description="...")`
+- [ ] 可枚举字段优先使用 `Enum/IntEnum`，未枚举处有说明
+- [ ] 文档约束（互斥/二选一/条件必填）已在模型校验中落地
+- [ ] 本地执行 `uv run ruff check .` 与 `uv run pytest` 通过
+- [ ] 如涉及公共接口，README 示例与导出说明已同步检查
