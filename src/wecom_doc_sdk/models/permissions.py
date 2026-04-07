@@ -183,17 +183,19 @@ class ModifyDocSafetySettingResponse(WeComBaseResponse):
 class SheetPrivMemberRange(WeComBaseModel):
     """智能表格权限规则的成员范围。"""
 
-    userid_list: Optional[List[str]] = None
+    userid_list: Optional[List[str]] = Field(
+        default=None, description="成员 userid 列表"
+    )
 
 
 class SheetPrivFieldRule(WeComBaseModel):
     """字段级权限规则。"""
 
-    field_id: str
-    field_type: Optional[FieldType] = None
-    can_edit: Optional[bool] = None
-    can_insert: Optional[bool] = None
-    can_view: Optional[bool] = None
+    field_id: str = Field(description="字段 ID")
+    field_type: Optional[FieldType] = Field(default=None, description="字段类型")
+    can_edit: Optional[bool] = Field(default=None, description="是否可编辑")
+    can_insert: Optional[bool] = Field(default=None, description="是否可插入记录")
+    can_view: Optional[bool] = Field(default=None, description="是否可查看")
 
 
 class SheetPrivFieldDefaultRule(WeComBaseModel):
@@ -215,10 +217,10 @@ class SheetPrivFieldPriv(WeComBaseModel):
 class SheetPrivRecordRule(WeComBaseModel):
     """记录范围筛选条件。"""
 
-    field_id: str
-    field_type: Optional[FieldType] = None
-    oper_type: SheetPrivRecordOperType
-    value: Optional[List[str]] = None
+    field_id: str = Field(description="筛选字段 ID")
+    field_type: Optional[FieldType] = Field(default=None, description="筛选字段类型")
+    oper_type: SheetPrivRecordOperType = Field(description="筛选操作符")
+    value: Optional[List[str]] = Field(default=None, description="筛选值列表")
 
 
 class SheetPrivRecordPriv(WeComBaseModel):
@@ -232,47 +234,65 @@ class SheetPrivRecordPriv(WeComBaseModel):
 class SheetPrivItem(WeComBaseModel):
     """单个子表权限配置。"""
 
-    sheet_id: str
-    priv: SheetPrivType
-    can_insert_record: Optional[bool] = None
-    can_delete_record: Optional[bool] = None
-    can_create_modify_delete_view: Optional[bool] = None
-    field_priv: Optional[SheetPrivFieldPriv] = None
-    record_priv: Optional[SheetPrivRecordPriv] = None
-    clear: Optional[bool] = None
+    sheet_id: str = Field(description="子表 ID")
+    priv: SheetPrivType = Field(description="子表权限类型")
+    can_insert_record: Optional[bool] = Field(
+        default=None, description="是否可新增记录"
+    )
+    can_delete_record: Optional[bool] = Field(
+        default=None, description="是否可删除记录"
+    )
+    can_create_modify_delete_view: Optional[bool] = Field(
+        default=None, description="是否可创建/修改/删除视图"
+    )
+    field_priv: Optional[SheetPrivFieldPriv] = Field(
+        default=None, description="字段级权限配置"
+    )
+    record_priv: Optional[SheetPrivRecordPriv] = Field(
+        default=None, description="记录级权限配置"
+    )
+    clear: Optional[bool] = Field(default=None, description="是否清空该子表权限配置")
 
 
 class SheetPrivRule(WeComBaseModel):
     """智能表格内容权限规则。"""
 
-    rule_id: Optional[int] = None
-    type: SheetPrivRuleType
-    name: Optional[str] = None
-    priv_list: Optional[List[SheetPrivItem]] = None
+    rule_id: Optional[int] = Field(default=None, description="权限规则 ID")
+    type: SheetPrivRuleType = Field(description="权限规则类型")
+    name: Optional[str] = Field(default=None, description="权限规则名称")
+    priv_list: Optional[List[SheetPrivItem]] = Field(
+        default=None, description="子表权限配置列表"
+    )
 
 
 class GetSheetPrivRequest(WeComBaseModel):
     """查询智能表格子表权限请求体。"""
 
-    docid: str
-    type: SheetPrivRuleType
-    rule_id_list: Optional[List[int]] = None
+    docid: str = Field(description="文档 ID")
+    type: SheetPrivRuleType = Field(description="查询规则类型")
+    rule_id_list: Optional[List[int]] = Field(
+        default=None, description="指定查询的规则 ID 列表"
+    )
 
 
 class GetSheetPrivResponse(WeComBaseResponse):
     """查询智能表格子表权限响应体。"""
 
-    rule_list: Optional[List[SheetPrivRule]] = None
+    rule_list: Optional[List[SheetPrivRule]] = Field(
+        default=None, description="权限规则列表"
+    )
 
 
 class UpdateSheetPrivRequest(WeComBaseModel):
     """更新智能表格子表权限请求体。"""
 
-    docid: str
-    type: SheetPrivRuleType
-    rule_id: Optional[int] = None
-    name: Optional[str] = None
-    priv_list: Optional[List[SheetPrivItem]] = None
+    docid: str = Field(description="文档 ID")
+    type: SheetPrivRuleType = Field(description="更新规则类型")
+    rule_id: Optional[int] = Field(default=None, description="待更新规则 ID")
+    name: Optional[str] = Field(default=None, description="规则名称")
+    priv_list: Optional[List[SheetPrivItem]] = Field(
+        default=None, description="子表权限配置列表"
+    )
 
 
 class UpdateSheetPrivResponse(WeComBaseResponse):
@@ -284,23 +304,27 @@ class UpdateSheetPrivResponse(WeComBaseResponse):
 class CreateSheetPrivRuleRequest(WeComBaseModel):
     """新增智能表格指定成员额外权限请求体。"""
 
-    docid: str
-    name: str
+    docid: str = Field(description="文档 ID")
+    name: str = Field(description="新增规则名称")
 
 
 class CreateSheetPrivRuleResponse(WeComBaseResponse):
     """新增智能表格指定成员额外权限响应体。"""
 
-    rule_id: Optional[int] = None
+    rule_id: Optional[int] = Field(default=None, description="新增规则 ID")
 
 
 class ModifySheetPrivRuleMemberRequest(WeComBaseModel):
     """更新智能表格指定成员额外权限请求体。"""
 
-    docid: str
-    rule_id: int
-    add_member_range: Optional[SheetPrivMemberRange] = None
-    del_member_range: Optional[SheetPrivMemberRange] = None
+    docid: str = Field(description="文档 ID")
+    rule_id: int = Field(description="规则 ID")
+    add_member_range: Optional[SheetPrivMemberRange] = Field(
+        default=None, description="新增成员范围"
+    )
+    del_member_range: Optional[SheetPrivMemberRange] = Field(
+        default=None, description="删除成员范围"
+    )
 
 
 class ModifySheetPrivRuleMemberResponse(WeComBaseResponse):
@@ -312,8 +336,8 @@ class ModifySheetPrivRuleMemberResponse(WeComBaseResponse):
 class DeleteSheetPrivRulesRequest(WeComBaseModel):
     """删除智能表格指定成员额外权限请求体。"""
 
-    docid: str
-    rule_id_list: List[int]
+    docid: str = Field(description="文档 ID")
+    rule_id_list: List[int] = Field(description="待删除规则 ID 列表")
 
 
 class DeleteSheetPrivRulesResponse(WeComBaseResponse):
