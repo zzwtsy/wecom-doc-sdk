@@ -185,3 +185,86 @@ def test_dump_model_uses_alias_and_excludes_none() -> None:
     payload = WeComClient.dump_model(DemoModel(docid="DOCID"))
 
     assert payload == {"docid": "DOCID"}
+
+
+def test_access_token_provider_close_respects_ownership() -> None:
+    """provider 仅应关闭自己创建的 http client。"""
+
+    class DummyHTTPClient:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def get(self, path: str, *, params: dict[str, Any]) -> httpx.Response:
+            return _json_response(
+                {"errcode": 0, "errmsg": "ok", "access_token": "TOKEN", "expires_in": 7200}
+            )
+
+        def close(self) -> None:
+            self.closed = True
+
+    external_client = DummyHTTPClient()
+    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=external_client)
+    provider.close()
+    assert external_client.closed is False
+
+
+def test_wecom_client_context_manager_closes_http_client() -> None:
+    """上下文管理器退出时应关闭底层 http client。"""
+
+    client = WeComClient("corp-id", "corp-secret")
+    closed = {"value": False}
+
+    def fake_close() -> None:
+        closed["value"] = True
+
+    client._http.close = fake_close  # type: ignore[method-assign]
+
+    with client as managed:
+        assert managed is client
+
+    assert closed["value"] is True
+
+
+def test_access_token_provider_closes_internal_http_client() -> None:
+    """provider 持有内部 client 时应在 close 时关闭连接。"""
+
+    class DummyHTTPClient:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=DummyHTTPClient())
+    provider._owns_client = True  # type: ignore[assignment]
+    provider.close()
+    assert provider._client.closed is True  # type: ignore[attr-defined]
+
+
+def test_access_token_provider_returns_cached_token_inside_lock() -> None:
+    """进入锁后若已有可用 token，应直接返回而不刷新。"""
+
+    class DummyHTTPClient:
+        def get(self, path: str, *, params: dict[str, Any]) -> httpx.Response:
+            raise AssertionError("should not refresh token")
+
+        def close(self) -> None:
+            return None
+
+    class TokenInjectLock:
+        def __init__(self, provider: AccessTokenProvider) -> None:
+            self.provider = provider
+
+        def __enter__(self) -> None:
+            self.provider._token = "LOCK_TOKEN"
+            self.provider._expire_at = 9999999999.0
+            return None
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=DummyHTTPClient())
+    provider._lock = TokenInjectLock(provider)  # type: ignore[assignment]
+
+    token = provider.get()
+    assert token == "LOCK_TOKEN"
