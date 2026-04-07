@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Callable
 
 import pytest
 from pydantic import ValidationError
@@ -14,39 +14,6 @@ from wecom_doc_sdk.models.records import (
     GetRecordsResponse,
     UpdateRecord,
 )
-
-
-@pytest.fixture
-def client() -> Iterator[WeComClient]:
-    """提供一个可关闭的 SDK 客户端实例。"""
-
-    sdk_client = WeComClient("corp-id", "corp-secret")
-    try:
-        yield sdk_client
-    finally:
-        sdk_client.close()
-
-
-def _bind_request_json(client: WeComClient, payload: dict[str, Any]) -> dict[str, Any]:
-    """替换请求方法，记录本次 API 调用细节。"""
-
-    captured: dict[str, Any] = {}
-
-    def fake_request_json(
-        method: str,
-        path: str,
-        *,
-        params: dict[str, Any] | None = None,
-        json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        captured["method"] = method
-        captured["path"] = path
-        captured["params"] = params
-        captured["json"] = json
-        return payload
-
-    client.request_json = fake_request_json  # type: ignore[method-assign]
-    return captured
 
 
 def test_client_mounts_smartsheet_api(client: WeComClient) -> None:
@@ -141,11 +108,11 @@ def test_update_record_rejects_none_values() -> None:
 
 def test_get_records_api_parses_query_values_and_uses_official_path(
     client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
 ) -> None:
     """API 层应命中正确路径，并透传查询侧可空 values。"""
 
-    captured = _bind_request_json(
-        client,
+    captured = bind_request_json(
         {
             "errcode": 0,
             "errmsg": "ok",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Callable
 
 import pytest
 
@@ -25,50 +25,19 @@ from wecom_doc_sdk.models.permissions import (
 )
 
 
-@pytest.fixture
-def client() -> Iterator[WeComClient]:
-    """提供一个可关闭的 SDK 客户端实例。"""
-
-    sdk_client = WeComClient("corp-id", "corp-secret")
-    try:
-        yield sdk_client
-    finally:
-        sdk_client.close()
-
-
-def _bind_request_json(client: WeComClient, payload: dict[str, Any]) -> dict[str, Any]:
-    """替换请求方法，记录本次 API 调用细节。"""
-
-    captured: dict[str, Any] = {}
-
-    def fake_request_json(
-        method: str,
-        path: str,
-        *,
-        params: dict[str, Any] | None = None,
-        json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        captured["method"] = method
-        captured["path"] = path
-        captured["params"] = params
-        captured["json"] = json
-        return payload
-
-    client.request_json = fake_request_json  # type: ignore[method-assign]
-    return captured
-
-
 def test_client_mounts_permissions_api(client: WeComClient) -> None:
     """客户端应默认挂载文档权限 API。"""
 
     assert isinstance(client.permissions, PermissionsAPI)
 
 
-def test_get_doc_auth_parses_nested_response(client: WeComClient) -> None:
+def test_get_doc_auth_parses_nested_response(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """获取权限信息应命中正确路径并解析嵌套结构。"""
 
-    captured = _bind_request_json(
-        client,
+    captured = bind_request_json(
         {
             "errcode": 0,
             "errmsg": "ok",
@@ -115,10 +84,13 @@ def test_get_doc_auth_parses_nested_response(client: WeComClient) -> None:
     assert response.co_auth_list[0].departmentid == 1
 
 
-def test_modify_doc_join_rule_serializes_model_request(client: WeComClient) -> None:
+def test_modify_doc_join_rule_serializes_model_request(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """修改加入规则应正确序列化部门共权限配置。"""
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
 
     response = client.permissions.modify_doc_join_rule(
         ModifyDocJoinRuleRequest(
@@ -142,10 +114,13 @@ def test_modify_doc_join_rule_serializes_model_request(client: WeComClient) -> N
     }
 
 
-def test_modify_doc_member_accepts_dict_request(client: WeComClient) -> None:
+def test_modify_doc_member_accepts_dict_request(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """修改成员与权限应支持直接传入 dict。"""
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
 
     response = client.permissions.modify_doc_member(
         {
@@ -179,10 +154,11 @@ def test_modify_doc_member_accepts_dict_request(client: WeComClient) -> None:
 
 def test_modify_doc_safety_setting_uses_official_safty_path(
     client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
 ) -> None:
     """公开方法名使用 safety，但实际请求路径需保持官方 safty 拼写。"""
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
 
     response = client.permissions.modify_doc_safety_setting(
         ModifyDocSafetySettingRequest(
@@ -214,11 +190,13 @@ def test_modify_doc_safety_setting_uses_official_safty_path(
     }
 
 
-def test_get_sheet_priv_parses_rule_list(client: WeComClient) -> None:
+def test_get_sheet_priv_parses_rule_list(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """查询智能表权限应命中正确路径并解析规则列表。"""
 
-    captured = _bind_request_json(
-        client,
+    captured = bind_request_json(
         {
             "errcode": 0,
             "errmsg": "ok",
@@ -244,10 +222,13 @@ def test_get_sheet_priv_parses_rule_list(client: WeComClient) -> None:
     assert response.rule_list[0].name == "全员权限"
 
 
-def test_update_sheet_priv_serializes_nested_rules(client: WeComClient) -> None:
+def test_update_sheet_priv_serializes_nested_rules(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """更新智能表权限应正确序列化嵌套字段与记录规则。"""
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
 
     response = client.permissions.update_sheet_priv(
         UpdateSheetPrivRequest(
@@ -323,10 +304,13 @@ def test_update_sheet_priv_serializes_nested_rules(client: WeComClient) -> None:
     }
 
 
-def test_sheet_priv_rule_crud_accepts_dict_and_model(client: WeComClient) -> None:
+def test_sheet_priv_rule_crud_accepts_dict_and_model(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """额外权限规则增删改成员接口应支持模型与 dict 入参。"""
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok", "rule_id": 9})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "rule_id": 9})
     create_resp = client.permissions.create_sheet_priv_rule(
         CreateSheetPrivRuleRequest(docid="DOCID", name="研发组")
     )
@@ -334,7 +318,7 @@ def test_sheet_priv_rule_crud_accepts_dict_and_model(client: WeComClient) -> Non
     assert captured["path"] == "/cgi-bin/wedoc/smartsheet/content_priv/create_rule"
     assert captured["json"] == {"docid": "DOCID", "name": "研发组"}
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
     modify_resp = client.permissions.modify_sheet_priv_rule_member(
         ModifySheetPrivRuleMemberRequest(
             docid="DOCID",
@@ -352,7 +336,7 @@ def test_sheet_priv_rule_crud_accepts_dict_and_model(client: WeComClient) -> Non
         "del_member_range": {"userid_list": ["u2"]},
     }
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
     delete_resp = client.permissions.delete_sheet_priv_rules(
         {"docid": "DOCID", "rule_id_list": [9]}
     )

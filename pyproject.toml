@@ -24,10 +24,11 @@ dependencies = ["httpx>=0.28.1", "pydantic>=2.12.5"]
 
 [dependency-groups]
 dev = [
-    "black>=26.3.1", 
-    "pytest>=9.0.2", 
-    "ruff>=0.15.6", 
-    "ty>=0.0.23"
+    "black>=26.3.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.6",
+    "ty>=0.0.23",
 ]
 
 [tool.black]
@@ -41,7 +42,10 @@ lint.select = ["E", "F", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q --cov=wecom_doc_sdk --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "integration: 依赖真实外部链路的集成测试",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wecom_doc_sdk"]

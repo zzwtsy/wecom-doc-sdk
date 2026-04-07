@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Callable
 
 import pytest
 from pydantic import ValidationError
@@ -10,50 +10,19 @@ from wecom_doc_sdk.apis import DocumentContentAPI
 from wecom_doc_sdk.models.document_content import BatchUpdateDocumentRequest
 
 
-@pytest.fixture
-def client() -> Iterator[WeComClient]:
-    """提供一个可关闭的 SDK 客户端实例。"""
-
-    sdk_client = WeComClient("corp-id", "corp-secret")
-    try:
-        yield sdk_client
-    finally:
-        sdk_client.close()
-
-
-def _bind_request_json(client: WeComClient, payload: dict[str, Any]) -> dict[str, Any]:
-    """替换请求方法，记录本次 API 调用细节。"""
-
-    captured: dict[str, Any] = {}
-
-    def fake_request_json(
-        method: str,
-        path: str,
-        *,
-        params: dict[str, Any] | None = None,
-        json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        captured["method"] = method
-        captured["path"] = path
-        captured["params"] = params
-        captured["json"] = json
-        return payload
-
-    client.request_json = fake_request_json  # type: ignore[method-assign]
-    return captured
-
-
 def test_client_mounts_document_content_api(client: WeComClient) -> None:
     """客户端应默认挂载文档内容 API。"""
 
     assert isinstance(client.document_content, DocumentContentAPI)
 
 
-def test_get_document_parses_tree_like_payload(client: WeComClient) -> None:
+def test_get_document_parses_tree_like_payload(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """获取文档数据应命中正确路径并保留节点树结构。"""
 
-    captured = _bind_request_json(
-        client,
+    captured = bind_request_json(
         {
             "errcode": 0,
             "errmsg": "ok",
@@ -75,10 +44,13 @@ def test_get_document_parses_tree_like_payload(client: WeComClient) -> None:
     assert response.document.type == "Document"
 
 
-def test_batch_update_serializes_requests_and_version(client: WeComClient) -> None:
+def test_batch_update_serializes_requests_and_version(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
     """批量更新应正确透传 requests 与 version。"""
 
-    captured = _bind_request_json(client, {"errcode": 0, "errmsg": "ok"})
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok"})
 
     response = client.document_content.batch_update(
         BatchUpdateDocumentRequest(
