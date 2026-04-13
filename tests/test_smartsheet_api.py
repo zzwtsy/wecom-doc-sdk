@@ -6,9 +6,11 @@ import pytest
 from pydantic import ValidationError
 
 from wecom_doc_sdk import WeComClient
+from wecom_doc_sdk.exceptions import WeComRequestError
 from wecom_doc_sdk.models.fields import AddField, AddFieldsRequest, FieldType
 from wecom_doc_sdk.models.groups import AddFieldGroupRequest
 from wecom_doc_sdk.models.sheets import AddSheetRequest
+from wecom_doc_sdk.models.uploads import ShareFileResponse, UploadFileResponse
 from wecom_doc_sdk.models.views import AddViewRequest, ViewType
 
 
@@ -116,6 +118,239 @@ def test_add_fields_serializes_nested_field_definition(
             }
         ],
     }
+
+
+def test_add_records_with_attachment_builds_record_values(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+) -> None:
+    """新增附件记录应构造正确的 values 结构并调用 add_records 接口。"""
+
+    captured = bind_request_json(
+        {"errcode": 0, "errmsg": "ok", "records": []}
+    )
+
+    response = client.smartsheet.add_records_with_attachment(
+        docid="DOCID",
+        sheet_id="sheet-1",
+        field_key="FILE_FIELD_ID",
+        attachments=[
+            {
+                "doc_type": 2,
+                "file_ext": "SMARTSHEET",
+                "file_id": "FILEID",
+                "file_type": "70",
+                "file_url": "https://doc.weixin.qq.com/smartsheet/xxx",
+                "name": "智能表格",
+                "size": 3267,
+            }
+        ],
+    )
+
+    assert response.records == []
+    assert captured["path"] == "/cgi-bin/wedoc/smartsheet/add_records"
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "sheet_id": "sheet-1",
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_ID",
+        "records": [
+            {
+                "values": {
+                    "FILE_FIELD_ID": [
+                        {
+                            "doc_type": 2,
+                            "file_ext": "SMARTSHEET",
+                            "file_id": "FILEID",
+                            "file_type": "70",
+                            "file_url": "https://doc.weixin.qq.com/smartsheet/xxx",
+                            "name": "智能表格",
+                            "size": 3267,
+                        }
+                    ]
+                }
+            }
+        ],
+    }
+
+
+def test_upload_file_and_add_attachment_record(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """上传文件后应将 file_id 写入附件字段并调用 add_records。"""
+
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "records": []})
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid="FILEID")
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+
+    response = client.smartsheet.upload_file_and_add_attachment_record(
+        docid="DOCID",
+        sheet_id="sheet-1",
+        field_key="FILE_FIELD_ID",
+        upload_request={
+            "spaceid": "SPACEID",
+            "fatherid": "FOLDERID",
+            "file_name": "example.txt",
+            "file_base64_content": "BASE64DATA",
+        },
+        attachment_metadata={"name": "example.txt", "size": 1024},
+    )
+
+    assert response.records == []
+    assert captured["path"] == "/cgi-bin/wedoc/smartsheet/add_records"
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "sheet_id": "sheet-1",
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_ID",
+        "records": [
+            {
+                "values": {
+                    "FILE_FIELD_ID": [
+                        {
+                            "file_id": "FILEID",
+                            "name": "example.txt",
+                            "size": 1024,
+                        }
+                    ]
+                }
+            }
+        ],
+    }
+
+
+def test_upload_file_and_add_attachment_record_raises_when_fileid_missing(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """上传成功响应缺少 fileid 时应直接抛出请求异常。"""
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid=None)
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+
+    with pytest.raises(WeComRequestError, match="fileid"):
+        client.smartsheet.upload_file_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            upload_request={
+                "spaceid": "SPACEID",
+                "fatherid": "FOLDERID",
+                "file_name": "example.txt",
+                "file_base64_content": "BASE64DATA",
+            },
+        )
+
+
+def test_upload_file_and_add_attachment_record_raises_when_share_url_missing(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """开启 share_link 时，缺少 share_url 应抛出请求异常。"""
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid="FILEID")
+
+    def fake_share_file(request: dict[str, object]) -> ShareFileResponse:
+        return ShareFileResponse(share_url=None)
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+    monkeypatch.setattr(client.uploads, "share_file", fake_share_file)
+
+    with pytest.raises(WeComRequestError, match="share_url"):
+        client.smartsheet.upload_file_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            upload_request={
+                "spaceid": "SPACEID",
+                "fatherid": "FOLDERID",
+                "file_name": "example.txt",
+                "file_base64_content": "BASE64DATA",
+            },
+            share_link=True,
+        )
+
+
+def test_upload_file_and_add_attachment_record_includes_share_url(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """开启 share_link 时应将分享链接写入附件字段。"""
+
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "records": []})
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid="FILEID")
+
+    def fake_share_file(request: dict[str, object]) -> ShareFileResponse:
+        return ShareFileResponse(share_url="https://example.com/share")
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+    monkeypatch.setattr(client.uploads, "share_file", fake_share_file)
+
+    response = client.smartsheet.upload_file_and_add_attachment_record(
+        docid="DOCID",
+        sheet_id="sheet-1",
+        field_key="FILE_FIELD_ID",
+        upload_request={
+            "spaceid": "SPACEID",
+            "fatherid": "FOLDERID",
+            "file_name": "example.txt",
+            "file_base64_content": "BASE64DATA",
+        },
+        share_link=True,
+    )
+
+    assert response.records == []
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "sheet_id": "sheet-1",
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_ID",
+        "records": [
+            {
+                "values": {
+                    "FILE_FIELD_ID": [
+                        {"file_id": "FILEID", "file_url": "https://example.com/share"}
+                    ]
+                }
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize("conflict_key", ["file_id", "file_url"])
+def test_upload_file_and_add_attachment_record_rejects_reserved_metadata_keys(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+    conflict_key: str,
+) -> None:
+    """附件元数据不允许覆盖 helper 内部保留字段。"""
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid="FILEID")
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+
+    with pytest.raises(ValueError, match="保留字段"):
+        client.smartsheet.upload_file_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            upload_request={
+                "spaceid": "SPACEID",
+                "fatherid": "FOLDERID",
+                "file_name": "example.txt",
+                "file_base64_content": "BASE64DATA",
+            },
+            attachment_metadata={conflict_key: "X"},
+        )
 
 
 def test_add_field_group_serializes_children(

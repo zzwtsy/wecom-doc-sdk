@@ -144,11 +144,13 @@ class WeComClient:
         from .apis.documents import DocumentsAPI
         from .apis.permissions import PermissionsAPI
         from .apis.smartsheet import SmartSheetAPI
+        from .apis.uploads import UploadsAPI
 
         self.documents = DocumentsAPI(self)
         self.document_content = DocumentContentAPI(self)
         self.permissions = PermissionsAPI(self)
         self.smartsheet = SmartSheetAPI(self)
+        self.uploads = UploadsAPI(self)
 
     def close(self) -> None:
         """关闭底层 HTTP 连接。"""
@@ -202,6 +204,51 @@ class WeComClient:
             ) from exc
 
         # 根据企业微信全局错误码文档，必须优先使用 errcode 判断业务是否成功。
+        if isinstance(payload, dict) and payload.get("errcode", 0) != 0:
+            raise WeComAPIError(
+                int(payload.get("errcode", -1)), str(payload.get("errmsg", "")), payload
+            )
+
+        return payload
+
+    def request_form(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        files: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """统一发送企业微信表单/文件上传请求。"""
+
+        token = self._token_provider.get()
+        request_params = dict(params or {})
+        request_params["access_token"] = token
+
+        try:
+            response = self._http.request(
+                method,
+                path,
+                params=request_params,
+                data=data,
+                files=files,
+            )
+        except httpx.HTTPError as exc:
+            raise WeComRequestError("请求企业微信接口失败", cause=exc) from exc
+
+        if response.status_code >= 400:
+            raise WeComRequestError(
+                "请求企业微信接口失败：HTTP 状态异常", response=response
+            )
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise WeComRequestError(
+                "响应解析失败：不是 JSON", response=response, cause=exc
+            ) from exc
+
         if isinstance(payload, dict) and payload.get("errcode", 0) != 0:
             raise WeComAPIError(
                 int(payload.get("errcode", -1)), str(payload.get("errmsg", "")), payload

@@ -127,6 +127,47 @@ def test_request_json_injects_access_token_and_preserves_params() -> None:
     client.close()
 
 
+def test_request_form_injects_access_token_and_preserves_params() -> None:
+    """request_form 应自动注入 access_token 并保留原参数。"""
+
+    client = WeComClient("corp-id", "corp-secret")
+    client._token_provider.get = lambda: "ACCESS_TOKEN"  # type: ignore[method-assign]
+
+    captured: dict[str, Any] = {}
+
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        captured["method"] = method
+        captured["path"] = path
+        captured["params"] = params
+        captured["data"] = data
+        captured["files"] = files
+        return _json_response({"errcode": 0, "errmsg": "ok", "value": 2}, path=path)
+
+    client._http.request = fake_request  # type: ignore[method-assign]
+    payload = client.request_form(
+        "POST",
+        "/cgi-bin/wedoc/image_upload",
+        params={"lang": "zh_CN"},
+        data={"docid": "D", "base64_content": "..."},
+        files={"file": ("test.png", b"dummy")},
+    )
+
+    assert payload["value"] == 2
+    assert captured["method"] == "POST"
+    assert captured["path"] == "/cgi-bin/wedoc/image_upload"
+    assert captured["data"] == {"docid": "D", "base64_content": "..."}
+    assert captured["files"] == {"file": ("test.png", b"dummy")}
+    assert captured["params"] == {"lang": "zh_CN", "access_token": "ACCESS_TOKEN"}
+    client.close()
+
+
 @pytest.mark.parametrize(
     ("factory", "expected_exception"),
     [

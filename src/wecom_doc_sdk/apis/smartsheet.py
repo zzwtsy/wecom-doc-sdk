@@ -5,6 +5,8 @@ from typing import Any, Type, TypeVar
 from pydantic import BaseModel
 
 from ..client import WeComClient
+from ..exceptions import WeComRequestError
+from ..models.enums import CellValueKeyType
 from ..models.fields import (
     AddFieldsRequest,
     AddFieldsResponse,
@@ -28,6 +30,7 @@ from ..models.groups import (
 from ..models.records import (
     AddRecordsRequest,
     AddRecordsResponse,
+    CellAttachmentValue,
     DeleteRecordsRequest,
     DeleteRecordsResponse,
     GetRecordsRequest,
@@ -45,6 +48,7 @@ from ..models.sheets import (
     UpdateSheetRequest,
     UpdateSheetResponse,
 )
+from ..models.uploads import UploadFileRequest
 from ..models.views import (
     AddViewRequest,
     AddViewResponse,
@@ -244,6 +248,84 @@ class SmartSheetAPI:
             json=self._client.dump_model(req),
         )
         return AddRecordsResponse.model_validate(data)
+
+    def add_records_with_attachment(
+        self,
+        docid: str,
+        sheet_id: str,
+        field_key: str,
+        attachments: list[CellAttachmentValue | dict[str, Any]],
+        *,
+        key_type: CellValueKeyType = CellValueKeyType.CELL_VALUE_KEY_TYPE_FIELD_ID,
+    ) -> AddRecordsResponse:
+        """新增包含附件字段的记录。
+
+        附件字段需要传入已有文件的 metadata，例如 file_id、file_url、name、size、
+        file_ext 等。该方法仅封装了记录结构构造，文件本身应先通过上传接口获取。
+        """
+        values = {
+            field_key: [
+                self._client.dump_model(attachment)
+                if isinstance(attachment, BaseModel)
+                else attachment
+                for attachment in attachments
+            ]
+        }
+        request_payload = {
+            "docid": docid,
+            "sheet_id": sheet_id,
+            "key_type": key_type.value,
+            "records": [{"values": values}],
+        }
+        return self.add_records(request_payload)
+
+    def upload_file_and_add_attachment_record(
+        self,
+        docid: str,
+        sheet_id: str,
+        field_key: str,
+        upload_request: UploadFileRequest | dict[str, Any],
+        *,
+        attachment_metadata: dict[str, Any] | CellAttachmentValue | None = None,
+        key_type: CellValueKeyType = CellValueKeyType.CELL_VALUE_KEY_TYPE_FIELD_ID,
+        share_link: bool = False,
+    ) -> AddRecordsResponse:
+        """上传文件到微盘并新增包含附件字段的记录。"""
+        upload_req = self._ensure_model(UploadFileRequest, upload_request)
+        upload_resp = self._client.uploads.upload_file(upload_req)
+        file_id = upload_resp.fileid
+        if not file_id:
+            raise WeComRequestError("上传文件成功但响应缺少 fileid")
+
+        attachment: dict[str, Any] = {"file_id": file_id}
+        if attachment_metadata is not None:
+            if isinstance(attachment_metadata, BaseModel):
+                metadata = self._client.dump_model(attachment_metadata)
+            else:
+                metadata = dict(attachment_metadata)
+
+            reserved_keys = {"file_id", "file_url"}
+            conflict_keys = sorted(reserved_keys.intersection(metadata.keys()))
+            if conflict_keys:
+                raise ValueError(
+                    "attachment_metadata 不能覆盖保留字段："
+                    + ", ".join(conflict_keys)
+                )
+            attachment.update(metadata)
+
+        if share_link:
+            share_resp = self._client.uploads.share_file({"fileid": file_id})
+            if not share_resp.share_url:
+                raise WeComRequestError("获取分享链接成功但响应缺少 share_url")
+            attachment["file_url"] = share_resp.share_url
+
+        return self.add_records_with_attachment(
+            docid=docid,
+            sheet_id=sheet_id,
+            field_key=field_key,
+            attachments=[attachment],
+            key_type=key_type,
+        )
 
     def delete_records(
         self, request: DeleteRecordsRequest | dict[str, Any]
