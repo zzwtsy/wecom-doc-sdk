@@ -366,4 +366,4 @@ class GetFieldsResponse(WeComBaseResponse):
 
 
 # 兼容文档命名：对外可使用 Field
-Field = FieldModel
+Field: type[FieldModel] = FieldModel

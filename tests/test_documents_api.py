@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.apis import DocumentsAPI
 from wecom_doc_sdk.models.documents import CreateDocRequest, GetDocBaseInfoRequest
+from wecom_doc_sdk.models.enums import DocType
 
 
 def test_client_mounts_documents_api(client: WeComClient) -> None:
@@ -32,7 +33,11 @@ def test_create_doc_serializes_model_request(
     )
 
     response = client.documents.create_doc(
-        CreateDocRequest(doc_type=10, doc_name="智能表", admin_users=["zhangsan"])
+        CreateDocRequest(
+            doc_type=DocType.SMARTSHEET,
+            doc_name="智能表",
+            admin_users=["zhangsan"],
+        )
     )
 
     assert response.ok is True

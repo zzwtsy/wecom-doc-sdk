@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -30,14 +30,23 @@ def test_access_token_provider_reuses_cached_token() -> None:
             assert "corpid" in params
             assert "corpsecret" in params
             return _json_response(
-                {"errcode": 0, "errmsg": "ok", "access_token": "TOKEN", "expires_in": 7200}
+                {
+                    "errcode": 0,
+                    "errmsg": "ok",
+                    "access_token": "TOKEN",
+                    "expires_in": 7200,
+                }
             )
 
         def close(self) -> None:
             return None
 
     http_client = DummyHTTPClient()
-    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=http_client)
+    provider = AccessTokenProvider(
+        "corp-id",
+        "corp-secret",
+        http_client=cast(Any, http_client),
+    )
 
     first = provider.get()
     second = provider.get()
@@ -52,7 +61,12 @@ def test_access_token_provider_reuses_cached_token() -> None:
     [
         (
             lambda: (_ for _ in ()).throw(
-                httpx.ConnectError("boom", request=httpx.Request("GET", "https://qyapi.weixin.qq.com/cgi-bin/gettoken"))
+                httpx.ConnectError(
+                    "boom",
+                    request=httpx.Request(
+                        "GET", "https://qyapi.weixin.qq.com/cgi-bin/gettoken"
+                    ),
+                )
             ),
             WeComRequestError,
         ),
@@ -61,11 +75,16 @@ def test_access_token_provider_reuses_cached_token() -> None:
             lambda: httpx.Response(
                 200,
                 content=b"not-json",
-                request=httpx.Request("GET", "https://qyapi.weixin.qq.com/cgi-bin/gettoken"),
+                request=httpx.Request(
+                    "GET", "https://qyapi.weixin.qq.com/cgi-bin/gettoken"
+                ),
             ),
             WeComRequestError,
         ),
-        (lambda: _json_response({"errcode": 40013, "errmsg": "invalid"}), WeComAPIError),
+        (
+            lambda: _json_response({"errcode": 40013, "errmsg": "invalid"}),
+            WeComAPIError,
+        ),
         (
             lambda: _json_response({"errcode": 0, "errmsg": "ok", "expires_in": 7200}),
             WeComRequestError,
@@ -87,7 +106,11 @@ def test_access_token_provider_error_mapping(
         def close(self) -> None:
             return None
 
-    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=DummyHTTPClient())
+    provider = AccessTokenProvider(
+        "corp-id",
+        "corp-secret",
+        http_client=cast(Any, DummyHTTPClient()),
+    )
 
     with pytest.raises(expected_exception):
         provider.get()
@@ -116,7 +139,10 @@ def test_request_json_injects_access_token_and_preserves_params() -> None:
 
     client._http.request = fake_request  # type: ignore[method-assign]
     payload = client.request_json(
-        "POST", "/cgi-bin/wedoc/get_doc_base_info", params={"lang": "zh_CN"}, json={"docid": "D"}
+        "POST",
+        "/cgi-bin/wedoc/get_doc_base_info",
+        params={"lang": "zh_CN"},
+        json={"docid": "D"},
     )
 
     assert payload["value"] == 1
@@ -173,7 +199,10 @@ def test_request_form_injects_access_token_and_preserves_params() -> None:
     [
         (
             lambda: (_ for _ in ()).throw(
-                httpx.ConnectError("boom", request=httpx.Request("POST", "https://qyapi.weixin.qq.com/mock"))
+                httpx.ConnectError(
+                    "boom",
+                    request=httpx.Request("POST", "https://qyapi.weixin.qq.com/mock"),
+                )
             ),
             WeComRequestError,
         ),
@@ -186,7 +215,10 @@ def test_request_form_injects_access_token_and_preserves_params() -> None:
             ),
             WeComRequestError,
         ),
-        (lambda: _json_response({"errcode": 48001, "errmsg": "forbidden"}), WeComAPIError),
+        (
+            lambda: _json_response({"errcode": 48001, "errmsg": "forbidden"}),
+            WeComAPIError,
+        ),
     ],
 )
 def test_request_json_error_mapping(
@@ -237,14 +269,23 @@ def test_access_token_provider_close_respects_ownership() -> None:
 
         def get(self, path: str, *, params: dict[str, Any]) -> httpx.Response:
             return _json_response(
-                {"errcode": 0, "errmsg": "ok", "access_token": "TOKEN", "expires_in": 7200}
+                {
+                    "errcode": 0,
+                    "errmsg": "ok",
+                    "access_token": "TOKEN",
+                    "expires_in": 7200,
+                }
             )
 
         def close(self) -> None:
             self.closed = True
 
     external_client = DummyHTTPClient()
-    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=external_client)
+    provider = AccessTokenProvider(
+        "corp-id",
+        "corp-secret",
+        http_client=cast(Any, external_client),
+    )
     provider.close()
     assert external_client.closed is False
 
@@ -276,8 +317,12 @@ def test_access_token_provider_closes_internal_http_client() -> None:
         def close(self) -> None:
             self.closed = True
 
-    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=DummyHTTPClient())
-    provider._owns_client = True  # type: ignore[assignment]
+    provider = AccessTokenProvider(
+        "corp-id",
+        "corp-secret",
+        http_client=cast(Any, DummyHTTPClient()),
+    )
+    provider._owns_client = True
     provider.close()
     assert provider._client.closed is True  # type: ignore[attr-defined]
 
@@ -304,8 +349,12 @@ def test_access_token_provider_returns_cached_token_inside_lock() -> None:
         def __exit__(self, exc_type, exc, tb) -> None:
             return None
 
-    provider = AccessTokenProvider("corp-id", "corp-secret", http_client=DummyHTTPClient())
-    provider._lock = TokenInjectLock(provider)  # type: ignore[assignment]
+    provider = AccessTokenProvider(
+        "corp-id",
+        "corp-secret",
+        http_client=cast(Any, DummyHTTPClient()),
+    )
+    provider._lock = TokenInjectLock(provider)
 
     token = provider.get()
     assert token == "LOCK_TOKEN"

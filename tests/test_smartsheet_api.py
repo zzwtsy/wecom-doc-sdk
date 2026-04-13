@@ -8,8 +8,8 @@ from pydantic import ValidationError
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.exceptions import WeComRequestError
 from wecom_doc_sdk.models.fields import AddField, AddFieldsRequest, FieldType
-from wecom_doc_sdk.models.groups import AddFieldGroupRequest
-from wecom_doc_sdk.models.sheets import AddSheetRequest
+from wecom_doc_sdk.models.groups import AddFieldGroupRequest, FieldGroupChild
+from wecom_doc_sdk.models.sheets import AddSheetProperties, AddSheetRequest
 from wecom_doc_sdk.models.uploads import ShareFileResponse, UploadFileResponse
 from wecom_doc_sdk.models.views import AddViewRequest, ViewType
 
@@ -25,13 +25,19 @@ def test_add_sheet_serializes_model_request(
     )
 
     response = client.smartsheet.add_sheet(
-        AddSheetRequest(docid="DOCID", properties={"title": "迭代计划", "index": 1})
+        AddSheetRequest(
+            docid="DOCID",
+            properties=AddSheetProperties(title="迭代计划", index=1),
+        )
     )
 
     assert response.properties is not None
     assert response.properties.sheet_id == "sheet-1"
     assert captured["path"] == "/cgi-bin/wedoc/smartsheet/add_sheet"
-    assert captured["json"] == {"docid": "DOCID", "properties": {"title": "迭代计划", "index": 1}}
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "properties": {"title": "迭代计划", "index": 1},
+    }
 
 
 def test_add_view_accepts_dict_request(
@@ -126,9 +132,7 @@ def test_add_records_with_attachment_builds_record_values(
 ) -> None:
     """新增附件记录应构造正确的 values 结构并调用 add_records 接口。"""
 
-    captured = bind_request_json(
-        {"errcode": 0, "errmsg": "ok", "records": []}
-    )
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "records": []})
 
     response = client.smartsheet.add_records_with_attachment(
         docid="DOCID",
@@ -376,7 +380,7 @@ def test_add_field_group_serializes_children(
             docid="DOCID",
             sheet_id="sheet-1",
             name="基础信息",
-            children=[{"field_id": "field-1"}],
+            children=[FieldGroupChild(field_id="field-1")],
         )
     )
 
@@ -432,7 +436,10 @@ def test_add_field_requires_field_type() -> None:
         ),
         (
             "update_sheet",
-            {"docid": "DOCID", "properties": {"sheet_id": "sheet-1", "title": "新标题"}},
+            {
+                "docid": "DOCID",
+                "properties": {"sheet_id": "sheet-1", "title": "新标题"},
+            },
             {"errcode": 0, "errmsg": "ok"},
             "/cgi-bin/wedoc/smartsheet/update_sheet",
         ),
@@ -519,7 +526,12 @@ def test_add_field_requires_field_type() -> None:
         ),
         (
             "update_field_group",
-            {"docid": "DOCID", "sheet_id": "sheet-1", "field_group_id": "g1", "name": "新分组"},
+            {
+                "docid": "DOCID",
+                "sheet_id": "sheet-1",
+                "field_group_id": "g1",
+                "name": "新分组",
+            },
             {"errcode": 0, "errmsg": "ok", "field_group": {"field_group_id": "g1"}},
             "/cgi-bin/wedoc/smartsheet/update_field_group",
         ),

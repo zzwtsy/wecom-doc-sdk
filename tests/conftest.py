@@ -20,7 +20,9 @@ def client() -> Iterator[WeComClient]:
 
 
 @pytest.fixture
-def bind_request_json(client: WeComClient) -> Callable[[dict[str, Any]], dict[str, Any]]:
+def bind_request_json(
+    client: WeComClient,
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """替换 request_json 并返回捕获的调用明细。"""
 
     def _bind(payload: dict[str, Any]) -> dict[str, Any]:

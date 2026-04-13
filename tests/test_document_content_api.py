@@ -7,7 +7,12 @@ from pydantic import ValidationError
 
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.apis import DocumentContentAPI
-from wecom_doc_sdk.models.document_content import BatchUpdateDocumentRequest
+from wecom_doc_sdk.models.document_content import (
+    BatchUpdateDocumentRequest,
+    InsertText,
+    Location,
+    UpdateRequest,
+)
 
 
 def test_client_mounts_document_content_api(client: WeComClient) -> None:
@@ -56,7 +61,11 @@ def test_batch_update_serializes_requests_and_version(
         BatchUpdateDocumentRequest(
             docid="DOCID",
             version=11,
-            requests=[{"insert_text": {"text": "hello", "location": {"index": 10}}}],
+            requests=[
+                UpdateRequest(
+                    insert_text=InsertText(text="hello", location=Location(index=10))
+                )
+            ],
         )
     )
 

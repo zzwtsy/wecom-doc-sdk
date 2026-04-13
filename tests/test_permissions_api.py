@@ -2,10 +2,20 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-import pytest
-
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.apis import PermissionsAPI
+from wecom_doc_sdk.models.enums import (
+    CoAuthType,
+    DocJoinRuleAuth,
+    DocWatermarkMarginType,
+    FieldType,
+    SheetPrivFieldRangeType,
+    SheetPrivRecordOperType,
+    SheetPrivRecordOtherPriv,
+    SheetPrivRecordRangeType,
+    SheetPrivRuleType,
+    SheetPrivType,
+)
 from wecom_doc_sdk.models.permissions import (
     CoAuthDepartment,
     CreateSheetPrivRuleRequest,
@@ -96,9 +106,15 @@ def test_modify_doc_join_rule_serializes_model_request(
         ModifyDocJoinRuleRequest(
             docid="DOCID",
             enable_corp_internal=True,
-            corp_internal_auth=2,
+            corp_internal_auth=DocJoinRuleAuth.READWRITE,
             update_co_auth_list=True,
-            co_auth_list=[CoAuthDepartment(type=2, departmentid=10001, auth=1)],
+            co_auth_list=[
+                CoAuthDepartment(
+                    type=CoAuthType.DEPARTMENT,
+                    departmentid=10001,
+                    auth=DocJoinRuleAuth.READONLY,
+                )
+            ],
         )
     )
 
@@ -166,7 +182,7 @@ def test_modify_doc_safety_setting_uses_official_safty_path(
             enable_readonly_copy=False,
             enable_readonly_comment=True,
             watermark=DocWatermark(
-                margin_type=1,
+                margin_type=DocWatermarkMarginType.TYPE_1,
                 show_visitor_name=True,
                 show_text=True,
                 text="classified",
@@ -212,7 +228,7 @@ def test_get_sheet_priv_parses_rule_list(
     )
 
     response = client.permissions.get_sheet_priv(
-        GetSheetPrivRequest(docid="DOCID", type=1)
+        GetSheetPrivRequest(docid="DOCID", type=SheetPrivRuleType.ALL_MEMBERS)
     )
 
     assert response.ok is True
@@ -233,20 +249,20 @@ def test_update_sheet_priv_serializes_nested_rules(
     response = client.permissions.update_sheet_priv(
         UpdateSheetPrivRequest(
             docid="DOCID",
-            type=2,
+            type=SheetPrivRuleType.EXTRA,
             rule_id=3,
             name="项目组权限",
             priv_list=[
                 SheetPrivItem(
                     sheet_id="sheet-1",
-                    priv=2,
+                    priv=SheetPrivType.EDITABLE,
                     can_insert_record=True,
                     field_priv=SheetPrivFieldPriv(
-                        field_range_type=2,
+                        field_range_type=SheetPrivFieldRangeType.PART_FIELDS,
                         field_rule_list=[
                             SheetPrivFieldRule(
                                 field_id="field-1",
-                                field_type="FIELD_TYPE_TEXT",
+                                field_type=FieldType.FIELD_TYPE_TEXT,
                                 can_edit=True,
                                 can_insert=True,
                                 can_view=True,
@@ -254,14 +270,14 @@ def test_update_sheet_priv_serializes_nested_rules(
                         ],
                     ),
                     record_priv=SheetPrivRecordPriv(
-                        record_range_type=2,
+                        record_range_type=SheetPrivRecordRangeType.ANY_CONDITION,
                         record_rule_list=[
                             SheetPrivRecordRule(
                                 field_id="CREATED_USER",
-                                oper_type=1,
+                                oper_type=SheetPrivRecordOperType.CONTAINS_SELF,
                             )
                         ],
-                        other_priv=1,
+                        other_priv=SheetPrivRecordOtherPriv.NOT_EDITABLE,
                     ),
                 )
             ],
