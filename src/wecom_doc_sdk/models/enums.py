@@ -218,6 +218,14 @@ class SheetType(StrEnum):
     smartsheet = "smartsheet"
 
 
+class WedriveFileType(IntEnum):
+    """微盘 `file_create` 支持的文件类型。"""
+
+    FOLDER = 1
+    DOC = 3
+    SHEET = 4
+
+
 class DecimalPlaces(IntEnum):
     """数字、进度、货币、百分比等字段的小数位设置。"""
 

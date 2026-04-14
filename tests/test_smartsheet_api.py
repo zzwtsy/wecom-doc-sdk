@@ -3,14 +3,23 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
+import wecom_doc_sdk.apis.smartsheet as smartsheet_api_module
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.exceptions import WeComRequestError
 from wecom_doc_sdk.models.fields import AddField, AddFieldsRequest, FieldType
 from wecom_doc_sdk.models.groups import AddFieldGroupRequest, FieldGroupChild
 from wecom_doc_sdk.models.sheets import AddSheetProperties, AddSheetRequest
-from wecom_doc_sdk.models.uploads import ShareFileResponse, UploadFileResponse
+from wecom_doc_sdk.models.uploads import (
+    FinishFileUploadResponse,
+    InitFileUploadRequest,
+    InitFileUploadResponse,
+    ShareFileResponse,
+    UploadFilePartResponse,
+    UploadFileRequest,
+    UploadFileResponse,
+)
 from wecom_doc_sdk.models.views import AddViewRequest, ViewType
 
 
@@ -354,6 +363,336 @@ def test_upload_file_and_add_attachment_record_rejects_reserved_metadata_keys(
                 "file_base64_content": "BASE64DATA",
             },
             attachment_metadata={conflict_key: "X"},
+        )
+
+
+def test_upload_bytes_and_add_attachment_record_uses_simple_upload_path(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """小文件 helper 应走直传、补充附件元数据并写入记录。"""
+
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "records": []})
+
+    def fake_upload_file(
+        request: UploadFileRequest | dict[str, object],
+    ) -> UploadFileResponse:
+        payload = (
+            client.dump_model(request) if isinstance(request, BaseModel) else request
+        )
+        assert payload["file_name"] == "report.pdf"
+        assert payload["spaceid"] == "SPACEID"
+        assert payload["fatherid"] == "FOLDERID"
+        assert payload["file_base64_content"] == "aGVsbG8="
+        return UploadFileResponse(fileid="FILEID")
+
+    def fake_share_file(request: dict[str, object]) -> ShareFileResponse:
+        assert request == {"fileid": "FILEID"}
+        return ShareFileResponse(share_url="https://example.com/share")
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+    monkeypatch.setattr(client.uploads, "share_file", fake_share_file)
+
+    response = client.smartsheet.upload_bytes_and_add_attachment_record(
+        docid="DOCID",
+        sheet_id="sheet-1",
+        field_key="FILE_FIELD_ID",
+        file_name="report.pdf",
+        file_bytes=b"hello",
+        spaceid="SPACEID",
+        fatherid="FOLDERID",
+    )
+
+    assert response.records == []
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "sheet_id": "sheet-1",
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_ID",
+        "records": [
+            {
+                "values": {
+                    "FILE_FIELD_ID": [
+                        {
+                            "file_id": "FILEID",
+                            "name": "report.pdf",
+                            "size": 5,
+                            "doc_type": 2,
+                            "file_type": "Wedrive",
+                            "file_ext": "PDF",
+                            "file_url": "https://example.com/share",
+                        }
+                    ]
+                }
+            }
+        ],
+    }
+
+
+def test_upload_bytes_and_add_attachment_record_supports_chunk_upload_path(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """大文件 helper 应走 init/part/finish 路径并按顺序上传分块。"""
+
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "records": []})
+    part_calls: list[dict[str, str | int]] = []
+
+    def fake_init_file_upload(
+        request: InitFileUploadRequest | dict[str, object],
+    ) -> InitFileUploadResponse:
+        payload = (
+            client.dump_model(request) if isinstance(request, BaseModel) else request
+        )
+        assert payload["selected_ticket"] == "TICKET"
+        assert payload["file_name"] == "archive.bin"
+        assert payload["size"] == smartsheet_api_module.WEDRIVE_CHUNK_SIZE + 3
+        block_sha = payload["block_sha"]
+        assert isinstance(block_sha, list)
+        assert len(block_sha) == 2
+        return InitFileUploadResponse(hit_exist=False, upload_key="UPLOAD_KEY")
+
+    def fake_upload_file_part(
+        request: dict[str, str | int],
+    ) -> UploadFilePartResponse:
+        part_calls.append(request)
+        return UploadFilePartResponse()
+
+    def fake_finish_file_upload(
+        request: dict[str, object],
+    ) -> FinishFileUploadResponse:
+        assert request == {"upload_key": "UPLOAD_KEY"}
+        return FinishFileUploadResponse(fileid="FILEID")
+
+    def fake_share_file(request: dict[str, object]) -> ShareFileResponse:
+        assert request == {"fileid": "FILEID"}
+        return ShareFileResponse(share_url="https://example.com/share")
+
+    monkeypatch.setattr(
+        smartsheet_api_module, "WEDRIVE_SIMPLE_UPLOAD_LIMIT", 1
+    )
+    monkeypatch.setattr(client.uploads, "init_file_upload", fake_init_file_upload)
+    monkeypatch.setattr(client.uploads, "upload_file_part", fake_upload_file_part)
+    monkeypatch.setattr(client.uploads, "finish_file_upload", fake_finish_file_upload)
+    monkeypatch.setattr(client.uploads, "share_file", fake_share_file)
+
+    file_bytes = b"a" * smartsheet_api_module.WEDRIVE_CHUNK_SIZE + b"xyz"
+    response = client.smartsheet.upload_bytes_and_add_attachment_record(
+        docid="DOCID",
+        sheet_id="sheet-1",
+        field_key="FILE_FIELD_ID",
+        file_name="archive.bin",
+        file_bytes=file_bytes,
+        selected_ticket="TICKET",
+    )
+
+    assert response.records == []
+    assert [call["index"] for call in part_calls] == [1, 2]
+    assert part_calls[0]["upload_key"] == "UPLOAD_KEY"
+    first_part = part_calls[0]["file_base64_content"]
+    second_part = part_calls[1]["file_base64_content"]
+    assert isinstance(first_part, str)
+    assert isinstance(second_part, str)
+    assert len(first_part) > len(second_part)
+    assert second_part == "eHl6"
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "sheet_id": "sheet-1",
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_ID",
+        "records": [
+            {
+                "values": {
+                    "FILE_FIELD_ID": [
+                        {
+                            "file_id": "FILEID",
+                            "name": "archive.bin",
+                            "size": smartsheet_api_module.WEDRIVE_CHUNK_SIZE + 3,
+                            "doc_type": 2,
+                            "file_type": "Wedrive",
+                            "file_ext": "BIN",
+                            "file_url": "https://example.com/share",
+                        }
+                    ]
+                }
+            }
+        ],
+    }
+
+
+def test_upload_bytes_and_add_attachment_record_skips_share_link_when_disabled(
+    client: WeComClient,
+    bind_request_json: Callable[[dict[str, object]], dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """关闭 share_link 时不应请求分享链接。"""
+
+    captured = bind_request_json({"errcode": 0, "errmsg": "ok", "records": []})
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid="FILEID")
+
+    def fake_share_file(request: dict[str, object]) -> ShareFileResponse:
+        raise AssertionError("share_file 不应被调用")
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+    monkeypatch.setattr(client.uploads, "share_file", fake_share_file)
+
+    response = client.smartsheet.upload_bytes_and_add_attachment_record(
+        docid="DOCID",
+        sheet_id="sheet-1",
+        field_key="FILE_FIELD_ID",
+        file_name="plain.txt",
+        file_bytes=b"hello",
+        spaceid="SPACEID",
+        fatherid="FOLDERID",
+        share_link=False,
+    )
+
+    assert response.records == []
+    assert captured["json"] == {
+        "docid": "DOCID",
+        "sheet_id": "sheet-1",
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_ID",
+        "records": [
+            {
+                "values": {
+                    "FILE_FIELD_ID": [
+                        {
+                            "file_id": "FILEID",
+                            "name": "plain.txt",
+                            "size": 5,
+                            "doc_type": 2,
+                            "file_type": "Wedrive",
+                            "file_ext": "TXT",
+                        }
+                    ]
+                }
+            }
+        ],
+    }
+
+
+def test_upload_bytes_and_add_attachment_record_raises_when_upload_key_missing(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """分块初始化未返回 upload_key 时应抛出请求异常。"""
+
+    def fake_init_file_upload(
+        request: InitFileUploadRequest | dict[str, object],
+    ) -> InitFileUploadResponse:
+        return InitFileUploadResponse(hit_exist=False, upload_key=None)
+
+    monkeypatch.setattr(
+        smartsheet_api_module, "WEDRIVE_SIMPLE_UPLOAD_LIMIT", 1
+    )
+    monkeypatch.setattr(client.uploads, "init_file_upload", fake_init_file_upload)
+
+    with pytest.raises(WeComRequestError, match="upload_key"):
+        client.smartsheet.upload_bytes_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            file_name="archive.bin",
+            file_bytes=b"a" * (smartsheet_api_module.WEDRIVE_CHUNK_SIZE + 1),
+            spaceid="SPACEID",
+            fatherid="FOLDERID",
+        )
+
+
+def test_upload_bytes_and_add_attachment_record_raises_when_hit_exist_fileid_missing(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """秒传命中但缺少 fileid 时应抛出请求异常。"""
+
+    def fake_init_file_upload(
+        request: InitFileUploadRequest | dict[str, object],
+    ) -> InitFileUploadResponse:
+        return InitFileUploadResponse(hit_exist=True, fileid=None)
+
+    monkeypatch.setattr(
+        smartsheet_api_module, "WEDRIVE_SIMPLE_UPLOAD_LIMIT", 1
+    )
+    monkeypatch.setattr(client.uploads, "init_file_upload", fake_init_file_upload)
+
+    with pytest.raises(WeComRequestError, match="fileid"):
+        client.smartsheet.upload_bytes_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            file_name="archive.bin",
+            file_bytes=b"a" * (smartsheet_api_module.WEDRIVE_CHUNK_SIZE + 1),
+            spaceid="SPACEID",
+            fatherid="FOLDERID",
+        )
+
+
+def test_upload_bytes_and_add_attachment_record_raises_when_finish_fileid_missing(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """分块完成未返回 fileid 时应抛出请求异常。"""
+
+    def fake_init_file_upload(
+        request: InitFileUploadRequest | dict[str, object],
+    ) -> InitFileUploadResponse:
+        return InitFileUploadResponse(hit_exist=False, upload_key="UPLOAD_KEY")
+
+    def fake_upload_file_part(
+        request: dict[str, object],
+    ) -> UploadFilePartResponse:
+        return UploadFilePartResponse()
+
+    def fake_finish_file_upload(
+        request: dict[str, object],
+    ) -> FinishFileUploadResponse:
+        return FinishFileUploadResponse(fileid=None)
+
+    monkeypatch.setattr(
+        smartsheet_api_module, "WEDRIVE_SIMPLE_UPLOAD_LIMIT", 1
+    )
+    monkeypatch.setattr(client.uploads, "init_file_upload", fake_init_file_upload)
+    monkeypatch.setattr(client.uploads, "upload_file_part", fake_upload_file_part)
+    monkeypatch.setattr(client.uploads, "finish_file_upload", fake_finish_file_upload)
+
+    with pytest.raises(WeComRequestError, match="fileid"):
+        client.smartsheet.upload_bytes_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            file_name="archive.bin",
+            file_bytes=b"a" * (smartsheet_api_module.WEDRIVE_CHUNK_SIZE + 1),
+            spaceid="SPACEID",
+            fatherid="FOLDERID",
+        )
+
+
+def test_upload_bytes_and_add_attachment_record_raises_when_share_url_missing(
+    client: WeComClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """bytes helper 开启 share_link 时缺少 share_url 应抛出请求异常。"""
+
+    def fake_upload_file(request: dict[str, object]) -> UploadFileResponse:
+        return UploadFileResponse(fileid="FILEID")
+
+    def fake_share_file(request: dict[str, object]) -> ShareFileResponse:
+        return ShareFileResponse(share_url=None)
+
+    monkeypatch.setattr(client.uploads, "upload_file", fake_upload_file)
+    monkeypatch.setattr(client.uploads, "share_file", fake_share_file)
+
+    with pytest.raises(WeComRequestError, match="share_url"):
+        client.smartsheet.upload_bytes_and_add_attachment_record(
+            docid="DOCID",
+            sheet_id="sheet-1",
+            field_key="FILE_FIELD_ID",
+            file_name="plain.txt",
+            file_bytes=b"hello",
+            spaceid="SPACEID",
+            fatherid="FOLDERID",
         )
 
 
