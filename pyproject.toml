@@ -20,7 +20,10 @@ classifiers = [
   "Typing :: Typed",
 ]
 urls = { Homepage = "https://github.com/zzwtsy/wecom-doc-sdk", Repository = "https://github.com/zzwtsy/wecom-doc-sdk" }
-dependencies = ["httpx>=0.28.1", "pydantic>=2.12.5"]
+dependencies = ["httpx>=0.28.1", "pydantic>=2.12.5", "PyYAML>=6.0.2"]
+
+[project.scripts]
+wecom-doc-sdk = "wecom_doc_sdk.cli:main"
 
 [dependency-groups]
 dev = [
