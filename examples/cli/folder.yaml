@@ -1,0 +1,9 @@
+# 微盘目录模板。
+# 这份模板可直接交给 `wecom-doc-sdk space folder create` 使用。
+
+# 已有微盘空间 ID。
+spaceid: SPACEID
+# 父目录 ID；如果直接放在空间根目录，可填 spaceid。
+fatherid: FOLDERID
+# 新目录名称。
+name: 附件目录

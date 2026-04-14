@@ -1,0 +1,16 @@
+# 智能表格子表模板。
+# 这份模板可直接交给 `wecom-doc-sdk smartsheet sheet create` 使用。
+# 如果填写 fields，会在创建子表后继续创建字段。
+
+# 已有智能表格的 docid。
+docid: DOCID
+# 子表标题。
+title: 附件表
+# 可选插入位置。
+# index: 0
+# 可选字段列表。
+# fields:
+#   - field_title: 文件名
+#     field_type: FIELD_TYPE_TEXT
+#   - field_title: 附件
+#     field_type: FIELD_TYPE_ATTACHMENT

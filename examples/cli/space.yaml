@@ -1,0 +1,19 @@
+# 微盘空间模板。
+# 这份模板可直接交给 `wecom-doc-sdk space create` 使用。
+# 如果填写 folder，会在创建空间后顺带创建一个单层目录。
+
+# 新空间名称。
+space_name: 示例空间
+# 空间类型，当前保持 0 即可。
+space_sub_type: 0
+# 可选的空间成员或管理员配置。
+# auth_info:
+#   # `type` 表示授权对象类型：1=成员，2=部门。
+#   - type: 1
+#     # 当 type=1 时填写 userid；当 type=2 时改填 departmentid。
+#     userid: zhangsan
+#     # `auth` 表示权限：1=仅下载，4=可预览，7=应用空间管理员。
+#     auth: 7
+# 可选目录配置；填写后会在空间根目录下创建一个文件夹。
+# folder:
+#   name: 附件目录

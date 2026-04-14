@@ -1,0 +1,34 @@
+# 企业微信智能表格脚手架模板。
+# 这份模板可以直接交给 `wecom-doc-sdk scaffold` 使用。
+# 请按你的业务场景修改示例值。
+
+# 微盘资源配置。
+# `use_existing` 模式会直接复用现成空间和目录。
+wedrive:
+  # `use_existing` 表示脚手架不会创建新空间。
+  mode: use_existing
+  # 已有微盘空间 ID。
+  spaceid: SPACEID
+  # 已有父目录 ID；如果要直接使用空间根目录，可填 spaceid。
+  fatherid: FOLDERID
+
+# 智能表格文档配置。
+doc:
+  # 智能表格标题。
+  title: 示例智能表
+
+# 子表定义。
+# 下面先给一张常用的附件表示例；你可以继续在 sheets 下追加更多子表。
+sheets:
+  - # 子表标题。
+    title: 附件表
+    # 字段定义列表；列表中的每一项都会创建成一个字段，顺序与这里保持一致。
+    # `field_title` 是字段显示名称，`field_type` 是字段类型枚举值。
+    # 如果需要更复杂的字段能力，可以继续补充对应的 `property_*` 配置。
+    fields:
+      - # 文本字段示例，通常用来记录原始文件名或业务标题。
+        field_title: 文件名
+        field_type: FIELD_TYPE_TEXT
+      - # 附件字段示例，用来写入微盘文件元数据。
+        field_title: 附件
+        field_type: FIELD_TYPE_ATTACHMENT

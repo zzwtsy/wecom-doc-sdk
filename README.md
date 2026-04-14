@@ -12,7 +12,7 @@
 - 使用 `pydantic v2` 建模请求与响应，便于校验和序列化
 - 完整类型标注，适合编辑器补全与静态检查
 - 对企业微信业务错误与请求错误做了统一异常封装
-- 提供 `wecom-doc-sdk` CLI，可生成 YAML 模板并一键创建微盘空间、目录与智能表格
+- 提供 `wecom-doc-sdk` CLI，可分别创建空间、目录、智能表格、子表，也可通过脚手架批量创建资源
 - 代码和公开模型带中文注释，尽量降低接入与维护成本
 
 ## 当前支持
@@ -131,16 +131,25 @@ with WeComClient(
 
 ### 使用 CLI 生成模板并创建资源
 
-先生成一份带注释的模板：
+仓库内已经提供了可直接参考的静态模板，位于 `examples/cli/`：
+
+- `examples/cli/scaffold.create.yaml`
+- `examples/cli/scaffold.use_existing.yaml`
+- `examples/cli/space.yaml`
+- `examples/cli/folder.yaml`
+- `examples/cli/smartsheet.yaml`
+- `examples/cli/sheet.yaml`
+
+先生成一份脚手架模板：
 
 ```bash
-wecom-doc-sdk init-template template.yaml
+wecom-doc-sdk template init scaffold template.yaml
 ```
 
-如果你已经有现成的微盘空间和目录，也可以生成复用模式模板：
+如果你已经有现成的微盘空间和目录，也可以生成复用模式的脚手架模板：
 
 ```bash
-wecom-doc-sdk init-template template.yaml --mode use_existing
+wecom-doc-sdk template init scaffold template.yaml --mode use_existing
 ```
 
 确认模板内容后，执行脚手架创建微盘空间、目录、智能表格、子表和字段：
@@ -158,6 +167,44 @@ wecom-doc-sdk scaffold template.yaml \
   --corp-id YOUR_CORP_ID \
   --corp-secret YOUR_CORP_SECRET \
   --dry-run
+```
+
+如果你想分别创建资源，也可以使用独立命令。
+
+生成空间模板并创建空间：
+
+```bash
+wecom-doc-sdk template init space space.yaml
+wecom-doc-sdk space create space.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
+```
+
+在已有空间下生成目录模板并创建目录：
+
+```bash
+wecom-doc-sdk template init folder folder.yaml
+wecom-doc-sdk space folder create folder.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
+```
+
+生成智能表格模板并创建智能表格：
+
+```bash
+wecom-doc-sdk template init smartsheet smartsheet.yaml
+wecom-doc-sdk smartsheet create smartsheet.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
+```
+
+生成子表模板并在已有智能表格中创建子表：
+
+```bash
+wecom-doc-sdk template init sheet sheet.yaml
+wecom-doc-sdk smartsheet sheet create sheet.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
 ```
 
 ### 获取文档内容
