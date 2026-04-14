@@ -3,7 +3,7 @@
 > [!WARNING]
 > 本项目为 **100% vibe coding** 实验产物，仅用于学习与测试交流；**请勿直接用于生产环境项目**。
 
-`wecom-doc-sdk` 是一个面向企业微信文档相关服务端 API 的 Python SDK，当前已支持“文档管理”“文档内容”“管理智能表格内容”与“设置文档权限”中的部分能力，并为后续扩展更多文档接口保留了清晰的客户端与模型结构。
+`wecom-doc-sdk` 是一个面向企业微信文档相关服务端 API 的 Python SDK，当前已支持“文档管理”“文档内容”“管理智能表格内容”“微盘上传相关能力”与“设置文档权限”中的部分能力，并提供了 `wecom-doc-sdk` CLI 用于生成脚手架模板和批量创建智能表格资源。
 
 ## 特性
 
@@ -12,6 +12,7 @@
 - 使用 `pydantic v2` 建模请求与响应，便于校验和序列化
 - 完整类型标注，适合编辑器补全与静态检查
 - 对企业微信业务错误与请求错误做了统一异常封装
+- 提供 `wecom-doc-sdk` CLI，可生成 YAML 模板并一键创建微盘空间、目录与智能表格
 - 代码和公开模型带中文注释，尽量降低接入与维护成本
 
 ## 当前支持
@@ -33,13 +34,21 @@
 - 字段：添加、删除、更新、查询
 - 记录：添加、删除、更新、查询
 - 编组：添加、更新、删除、查询
+- 微盘与上传
+- 文档图片上传
+- 微盘文件上传
+- 微盘空间：创建、成员添加、成员移除、空间信息查询
+- 微盘文件：创建、分享链接、分块上传初始化、分块上传、分块上传完成
+- 智能表格附件辅助上传
+- 将微盘文件上传后写入附件字段
+- 根据 `bytes` 内容自动选择直传或分块上传，再写入附件字段
 - 设置文档权限
 - 获取文档权限信息
 - 修改文档加入规则
 - 修改文档成员与权限
 - 修改文档安全设置
 
-对应入口为 `WeComClient.documents`、`WeComClient.document_content`、`WeComClient.smartsheet` 与 `WeComClient.permissions`。
+对应入口为 `WeComClient.documents`、`WeComClient.document_content`、`WeComClient.smartsheet`、`WeComClient.uploads` 与 `WeComClient.permissions`。
 
 ## 安装
 
@@ -55,6 +64,12 @@ pip install wecom-doc-sdk
 
 ```bash
 uv add wecom-doc-sdk
+```
+
+安装完成后可直接使用 CLI：
+
+```bash
+wecom-doc-sdk --help
 ```
 
 如果是本地开发安装：
@@ -96,7 +111,7 @@ with WeComClient(
 
 ```python
 from wecom_doc_sdk import WeComClient
-from wecom_doc_sdk.models.documents import DocType
+from wecom_doc_sdk.models.enums import DocType
 
 with WeComClient(
     corp_id="YOUR_CORP_ID",
@@ -107,11 +122,42 @@ with WeComClient(
             "spaceid": "SPACEID",
             "fatherid": "FATHERID",
             "doc_type": DocType.DOC,
-            "title": "项目周报",
+            "doc_name": "项目周报",
         }
     )
     share = client.documents.doc_share({"docid": created.docid})
     print(created.ok, created.docid, share.share_url)
+```
+
+### 使用 CLI 生成模板并创建资源
+
+先生成一份带注释的模板：
+
+```bash
+wecom-doc-sdk init-template template.yaml
+```
+
+如果你已经有现成的微盘空间和目录，也可以生成复用模式模板：
+
+```bash
+wecom-doc-sdk init-template template.yaml --mode use_existing
+```
+
+确认模板内容后，执行脚手架创建微盘空间、目录、智能表格、子表和字段：
+
+```bash
+wecom-doc-sdk scaffold template.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
+```
+
+只想预览本次会创建什么资源时，可以先运行：
+
+```bash
+wecom-doc-sdk scaffold template.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET \
+  --dry-run
 ```
 
 ### 获取文档内容
@@ -179,6 +225,30 @@ with WeComClient(
     print(response.ok, response.records)
 ```
 
+### 上传附件并写入智能表格
+
+如果你已经有 `docid`、`sheet_id`、附件字段 ID，以及可上传的微盘位置，可以直接让 SDK 完成“上传到微盘 + 写入附件列”这条链路：
+
+```python
+from wecom_doc_sdk import WeComClient
+
+with WeComClient(
+    corp_id="YOUR_CORP_ID",
+    corp_secret="YOUR_CORP_SECRET",
+) as client:
+    response = client.smartsheet.upload_bytes_and_add_attachment_record(
+        docid="DOCID",
+        sheet_id="SHEET_ID",
+        field_key="ATTACHMENT_FIELD_ID",
+        file_name="example.txt",
+        file_bytes=b"hello wecom",
+        spaceid="SPACEID",
+        fatherid="FOLDERID",
+    )
+
+    print(response.ok, response.records)
+```
+
 ## 错误处理
 
 SDK 将错误分成两类：
@@ -223,6 +293,7 @@ except WeComRequestError as exc:
 - 文档权限模型：从 `wecom_doc_sdk.models.permissions` 导入
 - 文档管理模型：从 `wecom_doc_sdk.models.documents` 导入
 - 文档内容模型：从 `wecom_doc_sdk.models.document_content` 导入
+- 上传与微盘模型：从 `wecom_doc_sdk.models.uploads` 导入
 - 子表模型：从 `wecom_doc_sdk.models.sheets` 导入
 - 视图模型：从 `wecom_doc_sdk.models.views` 导入
 - 字段模型：从 `wecom_doc_sdk.models.fields` 导入
