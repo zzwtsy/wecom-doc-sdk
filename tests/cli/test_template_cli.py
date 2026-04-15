@@ -46,7 +46,7 @@ def test_template_init_scaffold_use_existing_mode(tmp_path: Path) -> None:
 def test_template_init_generates_resource_templates(
     tmp_path: Path,
 ) -> None:
-    """template init 应支持四类资源模板。"""
+    """template init 应支持六类资源模板。"""
 
     cases = [
         (
@@ -68,6 +68,16 @@ def test_template_init_generates_resource_templates(
             "sheet",
             "sheet.yaml",
             "这份模板可直接交给 `wecom-doc-sdk smartsheet sheet create` 使用。",
+        ),
+        (
+            "space-admin",
+            "space-admin.yaml",
+            "这份模板可直接交给 `wecom-doc-sdk space admin add` 使用。",
+        ),
+        (
+            "doc-admin",
+            "doc-admin.yaml",
+            "这份模板可直接交给 `wecom-doc-sdk doc admin add` 使用。",
         ),
     ]
 

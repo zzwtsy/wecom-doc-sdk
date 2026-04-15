@@ -4,17 +4,24 @@ import argparse
 import sys
 from pathlib import Path
 
+from .commands.doc import run_doc_admin_add
 from .commands.scaffold import run_scaffold
 from .commands.smartsheet import run_smartsheet_create, run_smartsheet_sheet_create
-from .commands.space import run_space_create, run_space_folder_create
+from .commands.space import (
+    run_space_admin_add,
+    run_space_create,
+    run_space_folder_create,
+)
 from .commands.template import run_template_init
 from .errors import CLIError
 from .models import (
+    TEMPLATE_KIND_DOC_ADMIN,
     TEMPLATE_KIND_FOLDER,
     TEMPLATE_KIND_SCAFFOLD,
     TEMPLATE_KIND_SHEET,
     TEMPLATE_KIND_SMARTSHEET,
     TEMPLATE_KIND_SPACE,
+    TEMPLATE_KIND_SPACE_ADMIN,
     TEMPLATE_MODE_CREATE,
     TEMPLATE_MODE_USE_EXISTING,
 )
@@ -50,6 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
             TEMPLATE_KIND_FOLDER,
             TEMPLATE_KIND_SMARTSHEET,
             TEMPLATE_KIND_SHEET,
+            TEMPLATE_KIND_SPACE_ADMIN,
+            TEMPLATE_KIND_DOC_ADMIN,
         ],
         help="模板类型",
     )
@@ -81,6 +90,18 @@ def build_parser() -> argparse.ArgumentParser:
     space_folder_create_parser.add_argument("template_path", help="目录模板路径")
     add_auth_args(space_folder_create_parser)
 
+    space_admin_parser = space_subparsers.add_parser(
+        "admin", help="空间管理员相关命令"
+    )
+    space_admin_subparsers = space_admin_parser.add_subparsers(
+        dest="space_admin_command"
+    )
+    space_admin_add_parser = space_admin_subparsers.add_parser(
+        "add", help="根据 YAML 模板给已有空间添加管理员"
+    )
+    space_admin_add_parser.add_argument("template_path", help="空间管理员模板路径")
+    add_auth_args(space_admin_add_parser)
+
     smartsheet_parser = subparsers.add_parser(
         "smartsheet", help="智能表格相关命令"
     )
@@ -104,6 +125,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     smartsheet_sheet_create_parser.add_argument("template_path", help="子表模板路径")
     add_auth_args(smartsheet_sheet_create_parser)
+
+    doc_parser = subparsers.add_parser("doc", help="文档权限相关命令")
+    doc_subparsers = doc_parser.add_subparsers(dest="doc_command")
+    doc_admin_parser = doc_subparsers.add_parser("admin", help="文档管理员相关命令")
+    doc_admin_subparsers = doc_admin_parser.add_subparsers(dest="doc_admin_command")
+    doc_admin_add_parser = doc_admin_subparsers.add_parser(
+        "add", help="根据 YAML 模板给已有文档添加管理员"
+    )
+    doc_admin_add_parser.add_argument("template_path", help="文档管理员模板路径")
+    add_auth_args(doc_admin_add_parser)
 
     return parser
 
@@ -144,6 +175,13 @@ def main(argv: list[str] | None = None) -> int:
                     template_path=args.template_path,
                 )
                 return 0
+            if args.space_command == "admin" and args.space_admin_command == "add":
+                run_space_admin_add(
+                    corp_id=args.corp_id,
+                    corp_secret=args.corp_secret,
+                    template_path=args.template_path,
+                )
+                return 0
             parser.print_help()
             return 1
 
@@ -160,6 +198,17 @@ def main(argv: list[str] | None = None) -> int:
                 and args.smartsheet_sheet_command == "create"
             ):
                 run_smartsheet_sheet_create(
+                    corp_id=args.corp_id,
+                    corp_secret=args.corp_secret,
+                    template_path=args.template_path,
+                )
+                return 0
+            parser.print_help()
+            return 1
+
+        if args.command == "doc":
+            if args.doc_command == "admin" and args.doc_admin_command == "add":
+                run_doc_admin_add(
                     corp_id=args.corp_id,
                     corp_secret=args.corp_secret,
                     template_path=args.template_path,

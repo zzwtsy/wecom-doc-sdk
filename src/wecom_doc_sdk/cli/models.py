@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..models.fields import AddField
 from ..models.uploads import CreateSpaceAuthInfo
@@ -14,6 +14,8 @@ TEMPLATE_KIND_SPACE = "space"
 TEMPLATE_KIND_FOLDER = "folder"
 TEMPLATE_KIND_SMARTSHEET = "smartsheet"
 TEMPLATE_KIND_SHEET = "sheet"
+TEMPLATE_KIND_SPACE_ADMIN = "space-admin"
+TEMPLATE_KIND_DOC_ADMIN = "doc-admin"
 
 
 class CLITemplateBaseModel(BaseModel):
@@ -121,3 +123,57 @@ class SheetTemplate(CLITemplateBaseModel):
     title: str = Field(description="子表标题")
     index: int | None = Field(default=None, description="子表插入位置")
     fields: list[AddField] | None = Field(default=None, description="可选字段列表")
+
+
+def _normalize_admin_users(admin_users: list[str]) -> list[str]:
+    """标准化管理员列表：去空白、去重、保持原顺序。"""
+
+    normalized_users: list[str] = []
+    seen: set[str] = set()
+    for raw_userid in admin_users:
+        userid = raw_userid.strip()
+        if not userid:
+            raise ValueError("admin_users 不能包含空字符串")
+        if userid in seen:
+            continue
+        seen.add(userid)
+        normalized_users.append(userid)
+    if not normalized_users:
+        raise ValueError("admin_users 至少包含一个 userid")
+    return normalized_users
+
+
+class SpaceAdminAddTemplate(CLITemplateBaseModel):
+    """给已有空间添加管理员模板。"""
+
+    spaceid: str = Field(description="已有空间 ID")
+    admin_users: list[str] = Field(min_length=1, description="待新增管理员 userid 列表")
+
+    @field_validator("admin_users")
+    @classmethod
+    def validate_admin_users(cls, value: list[str]) -> list[str]:
+        """校验并标准化管理员列表。"""
+
+        return _normalize_admin_users(value)
+
+
+class DocAdminAddTemplate(CLITemplateBaseModel):
+    """给已有文档添加管理员模板。"""
+
+    docid: str = Field(description="已有文档 docid")
+    admin_users: list[str] = Field(min_length=1, description="待新增管理员 userid 列表")
+
+    @field_validator("admin_users")
+    @classmethod
+    def validate_admin_users(cls, value: list[str]) -> list[str]:
+        """校验并标准化管理员列表。"""
+
+        return _normalize_admin_users(value)
+
+    @model_validator(mode="after")
+    def validate_admin_user_limit(self) -> "DocAdminAddTemplate":
+        """文档成员更新接口单批次最多支持 100 人。"""
+
+        if len(self.admin_users) > 100:
+            raise ValueError("admin_users 去重后最多支持 100 个 userid")
+        return self

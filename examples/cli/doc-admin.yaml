@@ -1,0 +1,10 @@
+# 文档管理员添加模板。
+# 这份模板可直接交给 `wecom-doc-sdk doc admin add` 使用。
+
+# 已有文档 docid（支持文档/表格/智能表格）。
+docid: DOCID
+# 待新增为管理员的成员 userid 列表。
+# 列表会在命令执行前自动去空白和去重，且单次最多 100 人。
+admin_users:
+  - zhangsan
+  - lisi

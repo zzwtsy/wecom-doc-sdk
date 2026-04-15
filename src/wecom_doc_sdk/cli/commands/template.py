@@ -11,7 +11,15 @@ from ..utils import resolve_non_conflicting_path
 
 def run_template_init(
     *,
-    kind: Literal["scaffold", "space", "folder", "smartsheet", "sheet"],
+    kind: Literal[
+        "scaffold",
+        "space",
+        "folder",
+        "smartsheet",
+        "sheet",
+        "space-admin",
+        "doc-admin",
+    ],
     template_path: Path,
     mode: Literal["create", "use_existing"] = TEMPLATE_MODE_CREATE,
 ) -> Path:

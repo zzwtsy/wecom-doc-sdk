@@ -12,7 +12,7 @@
 - 使用 `pydantic v2` 建模请求与响应，便于校验和序列化
 - 完整类型标注，适合编辑器补全与静态检查
 - 对企业微信业务错误与请求错误做了统一异常封装
-- 提供 `wecom-doc-sdk` CLI，可分别创建空间、目录、智能表格、子表，也可通过脚手架批量创建资源
+- 提供 `wecom-doc-sdk` CLI，可分别创建空间、目录、智能表格、子表，也可给已有空间/文档添加管理员，并支持通过脚手架批量创建资源
 - 代码和公开模型带中文注释，尽量降低接入与维护成本
 
 ## 当前支持
@@ -139,6 +139,8 @@ with WeComClient(
 - `examples/cli/folder.yaml`
 - `examples/cli/smartsheet.yaml`
 - `examples/cli/sheet.yaml`
+- `examples/cli/space-admin.yaml`
+- `examples/cli/doc-admin.yaml`
 
 先生成一份脚手架模板：
 
@@ -203,6 +205,24 @@ wecom-doc-sdk smartsheet create smartsheet.yaml \
 ```bash
 wecom-doc-sdk template init sheet sheet.yaml
 wecom-doc-sdk smartsheet sheet create sheet.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
+```
+
+生成空间管理员模板并给已有空间添加管理员：
+
+```bash
+wecom-doc-sdk template init space-admin space-admin.yaml
+wecom-doc-sdk space admin add space-admin.yaml \
+  --corp-id YOUR_CORP_ID \
+  --corp-secret YOUR_CORP_SECRET
+```
+
+生成文档管理员模板并给已有文档添加管理员：
+
+```bash
+wecom-doc-sdk template init doc-admin doc-admin.yaml
+wecom-doc-sdk doc admin add doc-admin.yaml \
   --corp-id YOUR_CORP_ID \
   --corp-secret YOUR_CORP_SECRET
 ```

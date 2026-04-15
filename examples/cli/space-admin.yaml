@@ -1,0 +1,10 @@
+# 空间管理员添加模板。
+# 这份模板可直接交给 `wecom-doc-sdk space admin add` 使用。
+
+# 已有微盘空间 ID。
+spaceid: SPACEID
+# 待新增为管理员的成员 userid 列表。
+# 列表会在命令执行前自动去空白和去重。
+admin_users:
+  - zhangsan
+  - lisi

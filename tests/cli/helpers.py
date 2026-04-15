@@ -7,12 +7,21 @@ from typing import Any
 
 import pytest
 
+from wecom_doc_sdk.cli.commands import doc as doc_command
 from wecom_doc_sdk.cli.commands import scaffold, smartsheet, space
 from wecom_doc_sdk.models.documents import CreateDocResponse
 from wecom_doc_sdk.models.enums import FieldType
 from wecom_doc_sdk.models.fields import AddFieldsResponse, FieldModel
+from wecom_doc_sdk.models.permissions import ModifyDocMemberResponse
 from wecom_doc_sdk.models.sheets import AddSheetResponse, SheetProperties
-from wecom_doc_sdk.models.uploads import CreateFileResponse, CreateSpaceResponse
+from wecom_doc_sdk.models.uploads import (
+    AddSpaceAclResponse,
+    CreateFileResponse,
+    CreateSpaceResponse,
+    GetSpaceInfoResponse,
+    SpaceAuthList,
+    SpaceInfo,
+)
 
 
 def install_fake_yaml(
@@ -158,6 +167,24 @@ def build_sheet_template(with_fields: bool = False) -> dict[str, Any]:
     return payload
 
 
+def build_space_admin_template() -> dict[str, Any]:
+    """生成空间管理员添加模板。"""
+
+    return {
+        "spaceid": "SPACEID",
+        "admin_users": ["zhangsan", "lisi"],
+    }
+
+
+def build_doc_admin_template() -> dict[str, Any]:
+    """生成文档管理员添加模板。"""
+
+    return {
+        "docid": "DOCID",
+        "admin_users": ["zhangsan", "lisi"],
+    }
+
+
 class FakeUploadsAPI:
     """记录微盘 API 调用。"""
 
@@ -179,6 +206,23 @@ class FakeUploadsAPI:
             errmsg="ok",
             fileid=f"FILEID-{self._file_counter}",
         )
+
+    def get_space_info(self, request: Any) -> GetSpaceInfoResponse:
+        payload = request.model_dump(exclude_none=True)
+        self._calls.append(("get_space_info", payload))
+        return GetSpaceInfoResponse(
+            errcode=0,
+            errmsg="ok",
+            space_info=SpaceInfo(
+                spaceid=payload["spaceid"],
+                auth_list=SpaceAuthList(auth_info=[]),
+            ),
+        )
+
+    def add_space_acl(self, request: Any) -> AddSpaceAclResponse:
+        payload = request.model_dump(exclude_none=True)
+        self._calls.append(("add_space_acl", payload))
+        return AddSpaceAclResponse(errcode=0, errmsg="ok")
 
 
 class FakeDocumentsAPI:
@@ -239,6 +283,18 @@ class FakeSmartSheetAPI:
         return AddFieldsResponse(errcode=0, errmsg="ok", fields=fields)
 
 
+class FakePermissionsAPI:
+    """记录文档权限 API 调用。"""
+
+    def __init__(self, calls: list[tuple[str, dict[str, Any]]]) -> None:
+        self._calls = calls
+
+    def modify_doc_member(self, request: Any) -> ModifyDocMemberResponse:
+        payload = request.model_dump(exclude_none=True)
+        self._calls.append(("modify_doc_member", payload))
+        return ModifyDocMemberResponse(errcode=0, errmsg="ok")
+
+
 class FakeWeComClient:
     """用于 CLI 测试的假客户端。"""
 
@@ -251,6 +307,7 @@ class FakeWeComClient:
         self.uploads = FakeUploadsAPI(self.calls)
         self.documents = FakeDocumentsAPI(self.calls)
         self.smartsheet = FakeSmartSheetAPI(self.calls)
+        self.permissions = FakePermissionsAPI(self.calls)
         FakeWeComClient.instances.append(self)
 
     def __enter__(self) -> "FakeWeComClient":
@@ -268,3 +325,4 @@ def patch_wecom_client(
     monkeypatch.setattr(space, "WeComClient", client_cls)
     monkeypatch.setattr(smartsheet, "WeComClient", client_cls)
     monkeypatch.setattr(scaffold, "WeComClient", client_cls)
+    monkeypatch.setattr(doc_command, "WeComClient", client_cls)

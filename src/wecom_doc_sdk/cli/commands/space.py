@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from ...client import WeComClient
 from ...models.enums import WedriveFileType
-from ...models.uploads import CreateFileRequest, CreateSpaceRequest
-from ..models import FolderTemplate, SpaceTemplate
+from ...models.uploads import (
+    AddSpaceAclRequest,
+    CreateFileRequest,
+    CreateSpaceAuthInfo,
+    CreateSpaceRequest,
+    GetSpaceInfoRequest,
+)
+from ..errors import CLIError
+from ..models import FolderTemplate, SpaceAdminAddTemplate, SpaceTemplate
 from ..utils import load_template, print_json, require_value
 
 
@@ -79,6 +86,60 @@ def run_space_folder_create(
         "fatherid": template.fatherid,
         "fileid": require_value(folder_response.fileid, "fileid", "create_file"),
         "name": template.name,
+    }
+    print_json(result)
+    return result
+
+
+def run_space_admin_add(
+    *,
+    corp_id: str,
+    corp_secret: str,
+    template_path: str,
+) -> dict[str, object]:
+    """给已有空间添加管理员。"""
+
+    template = load_template(SpaceAdminAddTemplate, template_path)
+
+    with WeComClient(corp_id, corp_secret) as client:
+        space_info_response = client.uploads.get_space_info(
+            GetSpaceInfoRequest(spaceid=template.spaceid)
+        )
+        auth_info = (
+            space_info_response.space_info.auth_list.auth_info
+            if space_info_response.space_info
+            and space_info_response.space_info.auth_list
+            and space_info_response.space_info.auth_list.auth_info
+            else []
+        )
+        existing_admin_users = {
+            auth.userid
+            for auth in auth_info
+            if auth.type == 1 and auth.auth == 7 and auth.userid
+        }
+        existing_admin_count = len(existing_admin_users)
+        adding_admin_count = len(template.admin_users)
+        if existing_admin_count + adding_admin_count > 3:
+            raise CLIError(
+                "space admin add 失败：应用空间管理员最多 3 人，"
+                f"当前已有 {existing_admin_count} 人，本次新增 {adding_admin_count} 人"
+            )
+
+        client.uploads.add_space_acl(
+            AddSpaceAclRequest(
+                spaceid=template.spaceid,
+                auth_info=[
+                    CreateSpaceAuthInfo(type=1, userid=userid, auth=7)
+                    for userid in template.admin_users
+                ],
+            )
+        )
+
+    result: dict[str, object] = {
+        "spaceid": template.spaceid,
+        "admin_users": template.admin_users,
+        "existing_admin_count": existing_admin_count,
+        "added_count": adding_admin_count,
     }
     print_json(result)
     return result

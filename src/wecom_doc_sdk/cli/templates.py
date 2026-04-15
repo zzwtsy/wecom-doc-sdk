@@ -4,11 +4,13 @@ from typing import Literal
 
 from .errors import CLIError
 from .models import (
+    TEMPLATE_KIND_DOC_ADMIN,
     TEMPLATE_KIND_FOLDER,
     TEMPLATE_KIND_SCAFFOLD,
     TEMPLATE_KIND_SHEET,
     TEMPLATE_KIND_SMARTSHEET,
     TEMPLATE_KIND_SPACE,
+    TEMPLATE_KIND_SPACE_ADMIN,
     TEMPLATE_MODE_CREATE,
 )
 
@@ -162,8 +164,44 @@ title: 附件表
 """
 
 
+def build_space_admin_template_content() -> str:
+    return """# 空间管理员添加模板。
+# 这份模板可直接交给 `wecom-doc-sdk space admin add` 使用。
+
+# 已有微盘空间 ID。
+spaceid: SPACEID
+# 待新增为管理员的成员 userid 列表。
+# 列表会在命令执行前自动去空白和去重。
+admin_users:
+  - zhangsan
+  - lisi
+"""
+
+
+def build_doc_admin_template_content() -> str:
+    return """# 文档管理员添加模板。
+# 这份模板可直接交给 `wecom-doc-sdk doc admin add` 使用。
+
+# 已有文档 docid（支持文档/表格/智能表格）。
+docid: DOCID
+# 待新增为管理员的成员 userid 列表。
+# 列表会在命令执行前自动去空白和去重，且单次最多 100 人。
+admin_users:
+  - zhangsan
+  - lisi
+"""
+
+
 def build_template_content(
-    kind: Literal["scaffold", "space", "folder", "smartsheet", "sheet"],
+    kind: Literal[
+        "scaffold",
+        "space",
+        "folder",
+        "smartsheet",
+        "sheet",
+        "space-admin",
+        "doc-admin",
+    ],
     *,
     mode: Literal["create", "use_existing"] = TEMPLATE_MODE_CREATE,
 ) -> str:
@@ -177,4 +215,8 @@ def build_template_content(
         return build_smartsheet_template_content()
     if kind == TEMPLATE_KIND_SHEET:
         return build_sheet_template_content()
+    if kind == TEMPLATE_KIND_SPACE_ADMIN:
+        return build_space_admin_template_content()
+    if kind == TEMPLATE_KIND_DOC_ADMIN:
+        return build_doc_admin_template_content()
     raise CLIError(f"不支持的模板类型：{kind}")
