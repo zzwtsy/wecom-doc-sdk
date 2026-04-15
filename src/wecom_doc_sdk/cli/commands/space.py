@@ -118,28 +118,42 @@ def run_space_admin_add(
             if auth.type == 1 and auth.auth == 7 and auth.userid
         }
         existing_admin_count = len(existing_admin_users)
+        skipped_existing_admin_users = [
+            userid for userid in template.admin_users if userid in existing_admin_users
+        ]
+        new_admin_users = [
+            userid
+            for userid in template.admin_users
+            if userid not in existing_admin_users
+        ]
         adding_admin_count = len(template.admin_users)
-        if existing_admin_count + adding_admin_count > 3:
+        effective_added_count = len(new_admin_users)
+        if existing_admin_count + effective_added_count > 3:
             raise CLIError(
                 "space admin add 失败：应用空间管理员最多 3 人，"
-                f"当前已有 {existing_admin_count} 人，本次新增 {adding_admin_count} 人"
+                "当前已有 "
+                f"{existing_admin_count} 人，本次真正新增 "
+                f"{effective_added_count} 人"
             )
 
-        client.uploads.add_space_acl(
-            AddSpaceAclRequest(
-                spaceid=template.spaceid,
-                auth_info=[
-                    CreateSpaceAuthInfo(type=1, userid=userid, auth=7)
-                    for userid in template.admin_users
-                ],
+        if new_admin_users:
+            client.uploads.add_space_acl(
+                AddSpaceAclRequest(
+                    spaceid=template.spaceid,
+                    auth_info=[
+                        CreateSpaceAuthInfo(type=1, userid=userid, auth=7)
+                        for userid in new_admin_users
+                    ],
+                )
             )
-        )
 
     result: dict[str, object] = {
         "spaceid": template.spaceid,
         "admin_users": template.admin_users,
         "existing_admin_count": existing_admin_count,
         "added_count": adding_admin_count,
+        "skipped_existing_admin_users": skipped_existing_admin_users,
+        "effective_added_count": effective_added_count,
     }
     print_json(result)
     return result

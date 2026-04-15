@@ -86,11 +86,45 @@ def print_json(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
-def add_auth_args(parser: argparse.ArgumentParser) -> None:
+def build_success_payload(action: str, **payload: Any) -> dict[str, Any]:
+    """构造统一的成功输出。"""
+
+    return {
+        "status": "success",
+        "action": action,
+        **payload,
+    }
+
+
+def add_auth_args(parser: argparse.ArgumentParser, *, required: bool = True) -> None:
     """为命令补充企业微信鉴权参数。"""
 
-    parser.add_argument("--corp-id", required=True, help="企业微信 CorpID")
-    parser.add_argument("--corp-secret", required=True, help="企业微信应用 Secret")
+    parser.add_argument("--corp-id", required=required, help="企业微信 CorpID")
+    parser.add_argument(
+        "--corp-secret", required=required, help="企业微信应用 Secret"
+    )
+
+
+def require_auth_args(
+    *,
+    corp_id: str | None,
+    corp_secret: str | None,
+    action_name: str,
+) -> tuple[str, str]:
+    """在运行阶段校验鉴权参数。"""
+
+    missing_args: list[str] = []
+    if not corp_id:
+        missing_args.append("--corp-id")
+    if not corp_secret:
+        missing_args.append("--corp-secret")
+    if missing_args:
+        missing_text = "、".join(missing_args)
+        raise CLIError(f"{action_name} 缺少鉴权参数：{missing_text}")
+    # 前面的缺参分支已经抛错，这里保留 assert 让类型检查器收窄为 str。
+    assert corp_id is not None
+    assert corp_secret is not None
+    return corp_id, corp_secret
 
 
 def require_value(value: str | None, field_name: str, action_name: str) -> str:

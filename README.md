@@ -148,6 +148,8 @@ with WeComClient(
 wecom-doc-sdk template init scaffold template.yaml
 ```
 
+命令成功后会输出 JSON，包含稳定字段：`status`、`action`、`path`。
+
 如果你已经有现成的微盘空间和目录，也可以生成复用模式的脚手架模板：
 
 ```bash
@@ -166,10 +168,12 @@ wecom-doc-sdk scaffold template.yaml \
 
 ```bash
 wecom-doc-sdk scaffold template.yaml \
-  --corp-id YOUR_CORP_ID \
-  --corp-secret YOUR_CORP_SECRET \
   --dry-run
 ```
+
+`scaffold --dry-run` 不要求鉴权参数，输出 JSON 会包含 `status`、`action`、`mode`、`path`、`template_path`、`manifest_path` 和 `actions`。
+
+正式执行 `scaffold` 时，仍需提供 `--corp-id` 与 `--corp-secret`；成功后输出 JSON，包含 `status`、`action`、`path`、`manifest_path`、`template_path` 以及本次创建的关键资源标识。
 
 如果你想分别创建资源，也可以使用独立命令。
 
@@ -217,6 +221,8 @@ wecom-doc-sdk space admin add space-admin.yaml \
   --corp-id YOUR_CORP_ID \
   --corp-secret YOUR_CORP_SECRET
 ```
+
+`space admin add` 的 JSON 输出会保留原有的 `admin_users`、`existing_admin_count`、`added_count`，并新增 `skipped_existing_admin_users` 与 `effective_added_count`，用于区分模板中的重复管理员和本次真正新增的人数。
 
 生成文档管理员模板并给已有文档添加管理员：
 

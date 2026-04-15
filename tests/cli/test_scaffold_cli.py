@@ -36,10 +36,6 @@ def test_scaffold_dry_run_outputs_plan_without_creating_client(
         [
             "scaffold",
             str(template_path),
-            "--corp-id",
-            "corp-id",
-            "--corp-secret",
-            "corp-secret",
             "--dry-run",
         ]
     )
@@ -48,7 +44,10 @@ def test_scaffold_dry_run_outputs_plan_without_creating_client(
 
     assert exit_code == 0
     assert FakeWeComClient.instances == []
+    assert payload["status"] == "success"
+    assert payload["action"] == "scaffold"
     assert payload["mode"] == "dry-run"
+    assert payload["path"].endswith(".manifest.json")
     assert payload["actions"][0]["step"] == "create_space"
     assert payload["actions"][1]["step"] == "create_folder"
 
@@ -57,6 +56,7 @@ def test_scaffold_dry_run_outputs_plan_without_creating_client(
 def test_scaffold_create_mode_creates_wedrive_doc_and_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """create 模式应依次创建空间、目录、文档、子表和字段。"""
 
@@ -79,10 +79,22 @@ def test_scaffold_create_mode_creates_wedrive_doc_and_manifest(
         ]
     )
 
+    output = json.loads(capsys.readouterr().out)
     manifest = json.loads(output_path.read_text(encoding="utf-8"))
     calls = FakeWeComClient.instances[0].calls
 
     assert exit_code == 0
+    assert output == {
+        "status": "success",
+        "action": "scaffold",
+        "path": str(output_path.resolve()),
+        "manifest_path": str(output_path.resolve()),
+        "template_path": str(template_path.resolve()),
+        "spaceid": "SPACEID",
+        "fatherid": "FILEID-1",
+        "docid": "DOCID-1",
+        "sheet_count": 1,
+    }
     assert [name for name, _ in calls] == [
         "create_space",
         "create_file",
@@ -104,6 +116,7 @@ def test_scaffold_create_mode_creates_wedrive_doc_and_manifest(
 def test_scaffold_use_existing_mode_skips_space_creation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """use_existing 模式不应再创建空间和目录。"""
 
@@ -123,9 +136,15 @@ def test_scaffold_use_existing_mode_skips_space_creation(
         ]
     )
 
+    output = json.loads(capsys.readouterr().out)
     calls = FakeWeComClient.instances[0].calls
 
     assert exit_code == 0
+    assert output["status"] == "success"
+    assert output["action"] == "scaffold"
+    assert output["spaceid"] == "SPACEID"
+    assert output["fatherid"] == "FOLDERID"
+    assert output["docid"] == "DOCID-1"
     assert [name for name, _ in calls] == ["create_doc", "add_sheet", "add_fields"]
     assert calls[0][1]["spaceid"] == "SPACEID"
     assert calls[0][1]["fatherid"] == "FOLDERID"
@@ -135,6 +154,7 @@ def test_scaffold_use_existing_mode_skips_space_creation(
 def test_scaffold_uses_incremented_manifest_name_when_output_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """输出文件已存在时应自动生成不冲突的新文件名。"""
 
@@ -159,11 +179,36 @@ def test_scaffold_uses_incremented_manifest_name_when_output_exists(
         ]
     )
 
+    output = json.loads(capsys.readouterr().out)
     incremented_path = tmp_path / "result.1.json"
 
     assert exit_code == 0
+    assert output["manifest_path"] == str(incremented_path.resolve())
     assert output_path.read_text(encoding="utf-8") == "existing\n"
     assert incremented_path.exists()
+
+
+def test_scaffold_requires_auth_when_not_dry_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """非 dry-run 缺少鉴权参数时应返回清晰错误。"""
+
+    template_path = write_template_file(tmp_path)
+    install_fake_yaml(monkeypatch, build_scaffold_create_template())
+    FakeWeComClient.instances.clear()
+    patch_wecom_client(monkeypatch, FakeWeComClient)
+
+    exit_code = main(["scaffold", str(template_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert FakeWeComClient.instances == []
+    assert "scaffold 缺少鉴权参数" in captured.err
+    assert "--corp-id" in captured.err
+    assert "--corp-secret" in captured.err
 
 
 

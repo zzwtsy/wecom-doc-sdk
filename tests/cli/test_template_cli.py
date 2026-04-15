@@ -1,25 +1,38 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from wecom_doc_sdk.cli import main
 
 
-def test_template_init_scaffold_create_mode(tmp_path: Path) -> None:
+def test_template_init_scaffold_create_mode(
+    tmp_path: Path, capsys
+) -> None:
     """template init scaffold 默认生成 create 模式模板。"""
 
     output_path = tmp_path / "scaffold.yaml"
 
     exit_code = main(["template", "init", "scaffold", str(output_path)])
 
+    payload = json.loads(capsys.readouterr().out)
     content = output_path.read_text(encoding="utf-8")
 
     assert exit_code == 0
+    assert payload == {
+        "status": "success",
+        "action": "template_init",
+        "kind": "scaffold",
+        "mode": "create",
+        "path": str(output_path.resolve()),
+    }
     assert "这份模板可以直接交给 `wecom-doc-sdk scaffold` 使用。" in content
     assert "mode: create" in content
 
 
-def test_template_init_scaffold_use_existing_mode(tmp_path: Path) -> None:
+def test_template_init_scaffold_use_existing_mode(
+    tmp_path: Path, capsys
+) -> None:
     """scaffold 模板支持 use_existing 模式。"""
 
     output_path = tmp_path / "scaffold.yaml"
@@ -35,9 +48,17 @@ def test_template_init_scaffold_use_existing_mode(tmp_path: Path) -> None:
         ]
     )
 
+    payload = json.loads(capsys.readouterr().out)
     content = output_path.read_text(encoding="utf-8")
 
     assert exit_code == 0
+    assert payload == {
+        "status": "success",
+        "action": "template_init",
+        "kind": "scaffold",
+        "mode": "use_existing",
+        "path": str(output_path.resolve()),
+    }
     assert "mode: use_existing" in content
     assert "spaceid: SPACEID" in content
 
@@ -106,9 +127,7 @@ def test_template_init_uses_incremented_name_when_output_exists(tmp_path: Path) 
 
 
 
-def test_template_init_rejects_mode_for_non_scaffold(
-    tmp_path: Path, capsys
-) -> None:
+def test_template_init_rejects_mode_for_non_scaffold(tmp_path: Path, capsys) -> None:
     """非 scaffold 模板不接受 --mode。"""
 
     output_path = tmp_path / "space.yaml"
@@ -126,5 +145,27 @@ def test_template_init_rejects_mode_for_non_scaffold(
 
     captured = capsys.readouterr()
 
-    assert exit_code == 1
-    assert "只有 scaffold 模板支持 --mode 参数" in captured.err
+    assert exit_code == 2
+    assert "usage: wecom-doc-sdk" in captured.err
+    assert "unrecognized arguments: --mode use_existing" in captured.err
+
+
+def test_cli_reports_nested_help_for_missing_subcommands(capsys) -> None:
+    """缺少子命令时应输出当前层级帮助。"""
+
+    cases = [
+        (["template"], "usage: wecom-doc-sdk template"),
+        (["template", "init"], "usage: wecom-doc-sdk template init"),
+        (["space"], "usage: wecom-doc-sdk space"),
+        (["space", "folder"], "usage: wecom-doc-sdk space folder"),
+        (["smartsheet"], "usage: wecom-doc-sdk smartsheet"),
+        (["smartsheet", "sheet"], "usage: wecom-doc-sdk smartsheet sheet"),
+        (["doc"], "usage: wecom-doc-sdk doc"),
+        (["doc", "admin"], "usage: wecom-doc-sdk doc admin"),
+    ]
+
+    for argv, expected_usage in cases:
+        exit_code = main(argv)
+        captured = capsys.readouterr()
+        assert exit_code == 2
+        assert expected_usage in captured.err

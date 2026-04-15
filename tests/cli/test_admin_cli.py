@@ -63,6 +63,8 @@ def test_space_admin_add_outputs_json_and_calls_expected_apis(
         "admin_users": ["zhangsan", "lisi"],
         "existing_admin_count": 0,
         "added_count": 2,
+        "skipped_existing_admin_users": [],
+        "effective_added_count": 2,
     }
     assert calls[1][1] == {
         "spaceid": "SPACEID",
@@ -115,6 +117,82 @@ def test_doc_admin_add_outputs_json_and_calls_modify_doc_member(
         "update_file_member_list": [
             {"type": 1, "userid": "zhangsan", "auth": 7},
             {"type": 1, "userid": "lisi", "auth": 7},
+        ],
+    }
+
+
+def test_space_admin_add_skips_existing_admins_when_checking_limit_and_calling_api(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """已存在的管理员不应重复计入上限，也不应再次调用添加接口。"""
+
+    template_path = write_template_file(tmp_path, "space-admin.yaml")
+    install_fake_yaml(
+        monkeypatch,
+        {
+            "spaceid": "SPACEID",
+            "admin_users": ["admin1", "zhangsan"],
+        },
+    )
+
+    class ExistingAdminUploadsAPI(FakeUploadsAPI):
+        def get_space_info(self, request: Any) -> GetSpaceInfoResponse:
+            payload = request.model_dump(exclude_none=True)
+            self._calls.append(("get_space_info", payload))
+            return GetSpaceInfoResponse(
+                errcode=0,
+                errmsg="ok",
+                space_info=SpaceInfo(
+                    spaceid=payload["spaceid"],
+                    auth_list=SpaceAuthList(
+                        auth_info=[
+                            CreateSpaceAuthInfo(type=1, userid="admin1", auth=7),
+                            CreateSpaceAuthInfo(type=1, userid="admin2", auth=7),
+                        ]
+                    ),
+                ),
+            )
+
+    class ExistingAdminWeComClient(FakeWeComClient):
+        def __init__(self, corp_id: str, corp_secret: str) -> None:
+            super().__init__(corp_id, corp_secret)
+            self.uploads = ExistingAdminUploadsAPI(self.calls)
+
+    FakeWeComClient.instances.clear()
+    patch_wecom_client(monkeypatch, ExistingAdminWeComClient)
+
+    exit_code = main(
+        [
+            "space",
+            "admin",
+            "add",
+            str(template_path),
+            "--corp-id",
+            "corp-id",
+            "--corp-secret",
+            "corp-secret",
+        ]
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    calls = FakeWeComClient.instances[0].calls
+
+    assert exit_code == 0
+    assert [name for name, _ in calls] == ["get_space_info", "add_space_acl"]
+    assert output == {
+        "spaceid": "SPACEID",
+        "admin_users": ["admin1", "zhangsan"],
+        "existing_admin_count": 2,
+        "added_count": 2,
+        "skipped_existing_admin_users": ["admin1"],
+        "effective_added_count": 1,
+    }
+    assert calls[1][1] == {
+        "spaceid": "SPACEID",
+        "auth_info": [
+            {"type": 1, "userid": "zhangsan", "auth": 7},
         ],
     }
 

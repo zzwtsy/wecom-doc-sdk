@@ -14,7 +14,14 @@ from ..models import (
     ScaffoldWedriveCreateConfig,
     SheetCreateConfig,
 )
-from ..utils import load_template, print_json, require_value, resolve_manifest_path
+from ..utils import (
+    build_success_payload,
+    load_template,
+    print_json,
+    require_auth_args,
+    require_value,
+    resolve_manifest_path,
+)
 from .smartsheet import create_sheet_and_fields
 
 
@@ -71,7 +78,10 @@ def build_dry_run_summary(
         )
 
     return {
+        "status": "success",
+        "action": "scaffold",
         "mode": "dry-run",
+        "path": str(manifest_path.resolve()),
         "template_path": str(template_path.resolve()),
         "manifest_path": str(manifest_path.resolve()),
         "actions": actions,
@@ -80,8 +90,8 @@ def build_dry_run_summary(
 
 def run_scaffold(
     *,
-    corp_id: str,
-    corp_secret: str,
+    corp_id: str | None,
+    corp_secret: str | None,
     template_path: Path,
     output_path: Path | None = None,
     dry_run: bool = False,
@@ -94,6 +104,12 @@ def run_scaffold(
     if dry_run:
         print_json(build_dry_run_summary(template, template_path, manifest_path))
         return manifest_path
+
+    corp_id, corp_secret = require_auth_args(
+        corp_id=corp_id,
+        corp_secret=corp_secret,
+        action_name="scaffold",
+    )
 
     with WeComClient(corp_id, corp_secret) as client:
         if isinstance(template.wedrive, ScaffoldWedriveCreateConfig):
@@ -174,5 +190,16 @@ def run_scaffold(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(f"已生成 manifest：{manifest_path}")
+    print_json(
+        build_success_payload(
+            "scaffold",
+            path=str(manifest_path.resolve()),
+            manifest_path=str(manifest_path.resolve()),
+            template_path=str(template_path.resolve()),
+            spaceid=spaceid,
+            fatherid=fatherid,
+            docid=docid,
+            sheet_count=len(manifest_sheets),
+        )
+    )
     return manifest_path
