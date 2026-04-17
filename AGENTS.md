@@ -23,6 +23,12 @@
 `src/wecom_doc_sdk/models/`（Pydantic 模型）  
 `src/wecom_doc_sdk/apis/`（接口封装）
 
+当前仓库已落地的拆分模式：
+
+- `apis/` 下允许按职责拆出内部 helper 模块，例如 `smartsheet.py` 保留公开 API，`smartsheet_upload.py`、`smartsheet_attachment.py` 承载上传与附件编排细节
+- `models/` 下允许按“属性定义 / 请求响应模型 / 兼容导出层”拆分，例如 `fields_properties.py`、`fields_models.py` 提供实现，`fields.py` 仅保留兼容导出
+- 对外导入路径优先保持稳定；如需重构，优先新增内部模块并让原入口文件转为 facade，而不是直接破坏既有导入路径
+
 ## 开发规范要点
 
 - 中文注释：关键逻辑、边界条件与业务语义必须有中文说明
@@ -35,6 +41,7 @@
 - 枚举规范：默认使用简单 `Enum/IntEnum` 成员值，不使用 `label` 扩展字段；语义说明优先放在类 docstring（不依赖尾行注释）
 - 错误处理：统一沿用 `WeComAPIError` / `WeComRequestError`，并以 `errcode == 0` 作为业务成功判断标准
 - 扩展性：新增接口按模块拆分，避免把逻辑堆在单文件
+- 内部拆分：当单文件同时承担公开入口、校验规则、底层编排时，应优先按职责拆为内部模块，并由原入口文件统一委托
 - 导出约束：根包 `wecom_doc_sdk` 保持精简，只导出客户端等入口对象；异常与请求/响应模型分别从对应子模块导入
 
 详细规范见 `CONTRIBUTING.md`。

@@ -19,6 +19,8 @@
 - 建议包结构示例：`src/wecom_doc_sdk/`、`src/wecom_doc_sdk/client.py`、`src/wecom_doc_sdk/models/`、`src/wecom_doc_sdk/apis/`
 - 扩展约束：新增接口优先在 `apis/` 下增量扩展，避免接口逻辑堆在单一文件中
 - 导出约束：根包 `wecom_doc_sdk` 仅导出入口级对象；异常从 `wecom_doc_sdk.exceptions` 导入，请求/响应模型从 `wecom_doc_sdk.models.<domain>` 导入
+- 内部模块约束：当同一文件同时包含公开 API、底层上传/附件编排、复杂模型校验等多类职责时，应按职责拆分为内部模块；原入口文件优先保留为兼容 facade
+- 当前推荐模式：`apis/smartsheet.py` 作为公开入口，可委托给 `apis/smartsheet_upload.py`、`apis/smartsheet_attachment.py` 等内部模块；`models/fields.py` 作为兼容导出层，可委托给 `models/fields_properties.py`、`models/fields_models.py`
 
 ## 代码风格
 
@@ -42,6 +44,7 @@
 - 新增或修改公开请求/响应模型字段时，默认应补充 `Field(description="...")`（动态字段除外，需写注释说明原因）
 - 序列化/反序列化：输出用 `model_dump()`，输入用 `model_validate()`
 - 如果模块内需要保留业务别名 `Field`，则统一使用 `from pydantic import Field as PydanticField`，避免与业务模型命名冲突
+- 如 facade 模块需要继续对外暴露业务别名 `Field`，实现模块中必须统一使用 `PydanticField`，避免类型检查与导入语义冲突
 
 ## HTTP 规范（httpx）
 
