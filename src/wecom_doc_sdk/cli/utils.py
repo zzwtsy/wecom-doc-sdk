@@ -100,9 +100,7 @@ def add_auth_args(parser: argparse.ArgumentParser, *, required: bool = True) -> 
     """为命令补充企业微信鉴权参数。"""
 
     parser.add_argument("--corp-id", required=required, help="企业微信 CorpID")
-    parser.add_argument(
-        "--corp-secret", required=required, help="企业微信应用 Secret"
-    )
+    parser.add_argument("--corp-secret", required=required, help="企业微信应用 Secret")
 
 
 def require_auth_args(

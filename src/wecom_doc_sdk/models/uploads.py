@@ -63,9 +63,7 @@ class WedriveUploadTargetRequest(WeComBaseModel):
         if has_spaceid and has_fatherid:
             return self
 
-        raise ValueError(
-            "必须填写 selected_ticket，或同时填写 spaceid 与 fatherid"
-        )
+        raise ValueError("必须填写 selected_ticket，或同时填写 spaceid 与 fatherid")
 
 
 class UploadFileRequest(WedriveUploadTargetRequest):

@@ -105,9 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     space_create_parser.add_argument("template_path", help="空间模板路径")
     add_auth_args(space_create_parser)
 
-    space_folder_parser = space_subparsers.add_parser(
-        "folder", help="微盘目录相关命令"
-    )
+    space_folder_parser = space_subparsers.add_parser("folder", help="微盘目录相关命令")
     space_folder_subparsers = add_required_subparsers(
         space_folder_parser, dest="space_folder_command"
     )
@@ -117,9 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     space_folder_create_parser.add_argument("template_path", help="目录模板路径")
     add_auth_args(space_folder_create_parser)
 
-    space_admin_parser = space_subparsers.add_parser(
-        "admin", help="空间管理员相关命令"
-    )
+    space_admin_parser = space_subparsers.add_parser("admin", help="空间管理员相关命令")
     space_admin_subparsers = add_required_subparsers(
         space_admin_parser, dest="space_admin_command"
     )
@@ -129,9 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
     space_admin_add_parser.add_argument("template_path", help="空间管理员模板路径")
     add_auth_args(space_admin_add_parser)
 
-    smartsheet_parser = subparsers.add_parser(
-        "smartsheet", help="智能表格相关命令"
-    )
+    smartsheet_parser = subparsers.add_parser("smartsheet", help="智能表格相关命令")
     smartsheet_subparsers = add_required_subparsers(
         smartsheet_parser, dest="smartsheet_command"
     )
@@ -195,10 +189,7 @@ def main(argv: list[str] | None = None) -> int:
                     template_path=args.template_path,
                 )
                 return 0
-            if (
-                args.space_command == "folder"
-                and args.space_folder_command == "create"
-            ):
+            if args.space_command == "folder" and args.space_folder_command == "create":
                 run_space_folder_create(
                     corp_id=args.corp_id,
                     corp_secret=args.corp_secret,

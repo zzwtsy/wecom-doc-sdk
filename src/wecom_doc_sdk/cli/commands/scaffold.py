@@ -66,9 +66,7 @@ def build_dry_run_summary(
         }
     )
     for index, sheet in enumerate(template.sheets):
-        actions.append(
-            {"step": "add_sheet", "index": index, "title": sheet.title}
-        )
+        actions.append({"step": "add_sheet", "index": index, "title": sheet.title})
         actions.append(
             {
                 "step": "add_fields",
