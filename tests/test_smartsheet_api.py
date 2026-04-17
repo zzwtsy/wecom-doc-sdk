@@ -9,7 +9,12 @@ import wecom_doc_sdk.apis.smartsheet as smartsheet_api_module
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.exceptions import WeComRequestError
 from wecom_doc_sdk.models.enums import CellValueKeyType
-from wecom_doc_sdk.models.fields import AddField, AddFieldsRequest, FieldType
+from wecom_doc_sdk.models.fields import (
+    AddField,
+    AddFieldsRequest,
+    FieldType,
+    UpdateField,
+)
 from wecom_doc_sdk.models.groups import AddFieldGroupRequest, FieldGroupChild
 from wecom_doc_sdk.models.records import CellAttachmentValue
 from wecom_doc_sdk.models.sheets import AddSheetProperties, AddSheetRequest
@@ -1241,6 +1246,44 @@ def test_add_field_requires_field_type() -> None:
 
     with pytest.raises(ValidationError):
         AddField.model_validate({"field_title": "任务名"})
+
+
+def test_add_field_rejects_mismatched_property() -> None:
+    """字段定义应拒绝与 field_type 不匹配的属性结构。"""
+
+    with pytest.raises(ValidationError, match="仅支持 property_text"):
+        AddField.model_validate(
+            {
+                "field_title": "任务名",
+                "field_type": FieldType.FIELD_TYPE_TEXT,
+                "property_number": {"decimal_places": 2},
+            }
+        )
+
+
+def test_update_field_requires_title_or_matching_property() -> None:
+    """更新字段时至少应提供标题或匹配的属性变更。"""
+
+    with pytest.raises(ValidationError, match="至少填写 field_title"):
+        UpdateField.model_validate(
+            {
+                "field_id": "field-1",
+                "field_type": FieldType.FIELD_TYPE_TEXT,
+            }
+        )
+
+
+def test_update_field_rejects_mismatched_property() -> None:
+    """更新字段应拒绝与 field_type 不匹配的属性结构。"""
+
+    with pytest.raises(ValidationError, match="仅支持 property_text"):
+        UpdateField.model_validate(
+            {
+                "field_id": "field-1",
+                "field_type": FieldType.FIELD_TYPE_TEXT,
+                "property_number": {"decimal_places": 2},
+            }
+        )
 
 
 @pytest.mark.parametrize(

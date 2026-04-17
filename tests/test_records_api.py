@@ -92,6 +92,34 @@ def test_get_records_response_parses_attachment_value_without_falling_back() -> 
     assert attachment_value[0].file_id == "FILEID"
 
 
+def test_get_records_response_rejects_unknown_attachment_keys() -> None:
+    """附件对象包含未知字段时应失败，避免联合类型误判。"""
+
+    with pytest.raises(ValidationError):
+        GetRecordsResponse.model_validate(
+            {
+                "errcode": 0,
+                "errmsg": "ok",
+                "records": [
+                    {
+                        "record_id": "r1",
+                        "values": {
+                            "附件字段": [
+                                {
+                                    "doc_type": 2,
+                                    "file_id": "FILEID",
+                                    "file_type": "70",
+                                    "name": "智能表格",
+                                    "unexpected_field": "future-value",
+                                }
+                            ]
+                        },
+                    }
+                ],
+            }
+        )
+
+
 def test_add_record_rejects_none_values() -> None:
     """新增记录仍不应接受 `None` 作为写入值。"""
 

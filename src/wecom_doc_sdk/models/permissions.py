@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .common import WeComBaseModel, WeComBaseResponse
 from .enums import (
@@ -94,6 +94,14 @@ class DocMember(WeComBaseModel):
     # 文档成员权限：1 只读，2 读写，7 管理员。
     auth: Optional[DocMemberAuth] = Field(default=None, description="成员权限")
 
+    @model_validator(mode="after")
+    def validate_member_identity(self) -> "DocMember":
+        """校验文档成员必须且只能提供一种身份标识。"""
+
+        if bool(self.userid) == bool(self.tmp_external_userid):
+            raise ValueError("userid 与 tmp_external_userid 必须且只能传入一个")
+        return self
+
 
 class DocMemberTarget(WeComBaseModel):
     """删除文档成员时的目标对象。"""
@@ -103,6 +111,14 @@ class DocMemberTarget(WeComBaseModel):
     tmp_external_userid: Optional[str] = Field(
         default=None, description="外部联系人临时 ID"
     )
+
+    @model_validator(mode="after")
+    def validate_member_identity(self) -> "DocMemberTarget":
+        """校验删除成员目标必须且只能提供一种身份标识。"""
+
+        if bool(self.userid) == bool(self.tmp_external_userid):
+            raise ValueError("userid 与 tmp_external_userid 必须且只能传入一个")
+        return self
 
 
 class CoAuthDepartment(WeComBaseModel):
@@ -143,6 +159,38 @@ class ModifyDocJoinRuleRequest(WeComBaseModel):
     ban_share_external: Optional[bool] = None
     update_co_auth_list: Optional[bool] = None
     co_auth_list: Optional[List[CoAuthDepartment]] = None
+
+    @model_validator(mode="after")
+    def validate_join_rule_constraints(self) -> "ModifyDocJoinRuleRequest":
+        """校验文档加入规则中的跨字段约束。"""
+
+        if self.update_co_auth_list is True and self.co_auth_list is None:
+            raise ValueError(
+                "update_co_auth_list=True 时必须显式传入 co_auth_list，空列表表示清空"
+            )
+
+        if self.update_co_auth_list is not True and self.co_auth_list is not None:
+            raise ValueError("co_auth_list 仅能在 update_co_auth_list=True 时传入")
+
+        if (
+            self.enable_corp_internal is False
+            and self.corp_internal_approve_only_by_admin is False
+        ):
+            raise ValueError(
+                "enable_corp_internal=False 时，"
+                "corp_internal_approve_only_by_admin 只能为 True"
+            )
+
+        if (
+            self.enable_corp_external is False
+            and self.ban_share_external is False
+            and self.corp_external_approve_only_by_admin is False
+        ):
+            raise ValueError(
+                "enable_corp_external=False 且 ban_share_external=False 时，"
+                "corp_external_approve_only_by_admin 只能为 True"
+            )
+        return self
 
 
 class ModifyDocJoinRuleResponse(WeComBaseResponse):

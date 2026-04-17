@@ -46,7 +46,9 @@ class CellImageValue(WeComBaseModel):
 class CellAttachmentValue(WeComBaseModel):
     """文件单元格值。"""
 
-    # 查询响应里的文件对象字段较固定，禁止额外字段可避免误判为图片等类型。
+    # 这里有意保持严格解析：相比“忽略未知字段”的前向兼容性，当前更优先保证
+    # 联合类型判别稳定，避免附件对象因字段重叠被误判为图片等其他值类型。
+    # 如果官方后续为附件值扩展新字段，应连同联合类型解析策略一起调整。
     model_config = ConfigDict(extra="forbid")
 
     name: Optional[str] = Field(default=None, description="附件名称")

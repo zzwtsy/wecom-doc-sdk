@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import pytest
+from pydantic import ValidationError
+
 from wecom_doc_sdk import WeComClient
 from wecom_doc_sdk.apis import PermissionsAPI
 from wecom_doc_sdk.models.enums import (
@@ -19,6 +22,8 @@ from wecom_doc_sdk.models.enums import (
 from wecom_doc_sdk.models.permissions import (
     CoAuthDepartment,
     CreateSheetPrivRuleRequest,
+    DocMember,
+    DocMemberTarget,
     DocWatermark,
     GetDocAuthRequest,
     GetSheetPrivRequest,
@@ -128,6 +133,85 @@ def test_modify_doc_join_rule_serializes_model_request(
         "update_co_auth_list": True,
         "co_auth_list": [{"type": 2, "departmentid": 10001, "auth": 1}],
     }
+
+
+def test_modify_doc_join_rule_requires_co_auth_list_when_update_enabled() -> None:
+    """更新特定部门列表时应显式传入 co_auth_list。"""
+
+    with pytest.raises(ValidationError, match="必须显式传入 co_auth_list"):
+        ModifyDocJoinRuleRequest.model_validate(
+            {
+                "docid": "DOCID",
+                "update_co_auth_list": True,
+            }
+        )
+
+
+def test_modify_doc_join_rule_rejects_co_auth_list_without_update_flag() -> None:
+    """未开启更新标志时不应允许单独传入 co_auth_list。"""
+
+    with pytest.raises(ValidationError, match="仅能在 update_co_auth_list=True 时传入"):
+        ModifyDocJoinRuleRequest.model_validate(
+            {
+                "docid": "DOCID",
+                "co_auth_list": [{"type": 2, "departmentid": 1, "auth": 1}],
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "docid": "DOCID",
+            "enable_corp_internal": False,
+            "corp_internal_approve_only_by_admin": False,
+        },
+        {
+            "docid": "DOCID",
+            "enable_corp_external": False,
+            "ban_share_external": False,
+            "corp_external_approve_only_by_admin": False,
+        },
+    ],
+)
+def test_modify_doc_join_rule_rejects_invalid_approve_combinations(
+    payload: dict[str, object],
+) -> None:
+    """文档加入规则应拦截文档说明中禁止的审批开关组合。"""
+
+    with pytest.raises(ValidationError):
+        ModifyDocJoinRuleRequest.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"type": 1, "auth": 1},
+        {"type": 1, "userid": "zhangsan", "tmp_external_userid": "tmp-1", "auth": 1},
+    ],
+)
+def test_doc_member_requires_exactly_one_identity(payload: dict[str, object]) -> None:
+    """文档成员必须且只能提供一种身份标识。"""
+
+    with pytest.raises(ValidationError, match="必须且只能传入一个"):
+        DocMember.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"type": 1},
+        {"type": 1, "userid": "zhangsan", "tmp_external_userid": "tmp-1"},
+    ],
+)
+def test_doc_member_target_requires_exactly_one_identity(
+    payload: dict[str, object],
+) -> None:
+    """删除成员目标必须且只能提供一种身份标识。"""
+
+    with pytest.raises(ValidationError, match="必须且只能传入一个"):
+        DocMemberTarget.model_validate(payload)
 
 
 def test_modify_doc_member_accepts_dict_request(

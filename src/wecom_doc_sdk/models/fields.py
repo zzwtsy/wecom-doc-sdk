@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, ConfigDict, Field, model_validator
 from pydantic import Field as PydanticField
 
 from .common import WeComBaseModel, WeComBaseResponse
@@ -18,9 +18,102 @@ from .enums import (
     Style,
 )
 
+FIELD_TYPE_PROPERTY_NAME_MAP: dict[FieldType, str | None] = {
+    FieldType.FIELD_TYPE_TEXT: "property_text",
+    FieldType.FIELD_TYPE_NUMBER: "property_number",
+    FieldType.FIELD_TYPE_CHECKBOX: "property_checkbox",
+    FieldType.FIELD_TYPE_DATE_TIME: "property_date_time",
+    FieldType.FIELD_TYPE_IMAGE: None,
+    FieldType.FIELD_TYPE_ATTACHMENT: "property_attachment",
+    FieldType.FIELD_TYPE_USER: "property_user",
+    FieldType.FIELD_TYPE_URL: "property_url",
+    FieldType.FIELD_TYPE_SELECT: "property_select",
+    FieldType.FIELD_TYPE_CREATED_USER: "property_created_user",
+    FieldType.FIELD_TYPE_MODIFIED_USER: "property_modified_user",
+    FieldType.FIELD_TYPE_CREATED_TIME: "property_created_time",
+    FieldType.FIELD_TYPE_MODIFIED_TIME: "property_modified_time",
+    FieldType.FIELD_TYPE_PROGRESS: "property_progress",
+    FieldType.FIELD_TYPE_PHONE_NUMBER: None,
+    FieldType.FIELD_TYPE_EMAIL: None,
+    FieldType.FIELD_TYPE_SINGLE_SELECT: "property_single_select",
+    FieldType.FIELD_TYPE_REFERENCE: "property_reference",
+    FieldType.FIELD_TYPE_LOCATION: "property_location",
+    FieldType.FIELD_TYPE_FORMULA: None,
+    FieldType.FIELD_TYPE_CURRENCY: "property_currency",
+    FieldType.FIELD_TYPE_WWGROUP: "property_ww_group",
+    FieldType.FIELD_TYPE_AUTONUMBER: "property_auto_number",
+    FieldType.FIELD_TYPE_PERCENTAGE: "property_percentage",
+    FieldType.FIELD_TYPE_BARCODE: "property_barcode",
+}
+
+FIELD_PROPERTY_NAMES: tuple[str, ...] = (
+    "property_text",
+    "property_number",
+    "property_checkbox",
+    "property_date_time",
+    "property_attachment",
+    "property_user",
+    "property_url",
+    "property_select",
+    "property_created_user",
+    "property_modified_user",
+    "property_created_time",
+    "property_modified_time",
+    "property_progress",
+    "property_single_select",
+    "property_reference",
+    "property_location",
+    "property_auto_number",
+    "property_currency",
+    "property_ww_group",
+    "property_percentage",
+    "property_barcode",
+)
+
+
+def _get_configured_field_properties(model: Any) -> list[str]:
+    """返回当前字段模型中被显式设置的属性字段名。"""
+
+    return [
+        property_name
+        for property_name in FIELD_PROPERTY_NAMES
+        if getattr(model, property_name, None) is not None
+    ]
+
+
+def _validate_field_type_property_match(model: Any) -> Any:
+    """校验字段类型与字段属性的一一对应关系。"""
+
+    configured_properties = _get_configured_field_properties(model)
+    expected_property = FIELD_TYPE_PROPERTY_NAME_MAP[model.field_type]
+
+    if expected_property is None:
+        if configured_properties:
+            raise ValueError(
+                f"{model.field_type.value} 不支持字段属性："
+                f"{', '.join(configured_properties)}"
+            )
+        return model
+
+    invalid_properties = [
+        property_name
+        for property_name in configured_properties
+        if property_name != expected_property
+    ]
+    if invalid_properties:
+        raise ValueError(
+            f"{model.field_type.value} 仅支持 {expected_property}，"
+            f"不能同时填写：{', '.join(invalid_properties)}"
+        )
+    return model
+
 
 class Option(WeComBaseModel):
     """单选/多选字段中的选项定义。"""
+
+    # 选项对象会参与 records 模块的联合类型解析，这里禁止额外字段，
+    # 避免附件/图片等对象在包含未知字段时错误回退为 Option。
+    model_config = ConfigDict(extra="forbid")
 
     # 已存在选项优先通过 ID 识别；新增选项时可为空。
     id: Optional[str] = Field(default=None, description="选项 ID")
@@ -252,6 +345,12 @@ class AddField(WeComBaseModel):
     property_percentage: Optional[PercentageFieldProperty] = None
     property_barcode: Optional[BarcodeFieldProperty] = None
 
+    @model_validator(mode="after")
+    def validate_field_type_property_match(self) -> "AddField":
+        """校验新增字段的字段类型与字段属性是否匹配。"""
+
+        return _validate_field_type_property_match(self)
+
 
 class UpdateField(WeComBaseModel):
     """更新字段定义。
@@ -291,6 +390,19 @@ class UpdateField(WeComBaseModel):
     property_ww_group: Optional[WwGroupFieldProperty] = None
     property_percentage: Optional[PercentageFieldProperty] = None
     property_barcode: Optional[BarcodeFieldProperty] = None
+
+    @model_validator(mode="after")
+    def validate_update_payload(self) -> "UpdateField":
+        """校验更新字段的有效变更内容。"""
+
+        _validate_field_type_property_match(self)
+
+        configured_properties = _get_configured_field_properties(self)
+        if self.field_title is None and not configured_properties:
+            raise ValueError(
+                "更新字段时至少填写 field_title 或与 field_type 匹配的字段属性"
+            )
+        return self
 
 
 class AddFieldsRequest(WeComBaseModel):
