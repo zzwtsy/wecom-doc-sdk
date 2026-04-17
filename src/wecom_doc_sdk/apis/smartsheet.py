@@ -373,9 +373,11 @@ class SmartSheetAPI:
         """
         values = {
             field_key: [
-                self._client.dump_model(attachment)
-                if isinstance(attachment, BaseModel)
-                else attachment
+                (
+                    self._client.dump_model(attachment)
+                    if isinstance(attachment, BaseModel)
+                    else attachment
+                )
                 for attachment in attachments
             ]
         }
@@ -386,6 +388,136 @@ class SmartSheetAPI:
             "records": [{"values": values}],
         }
         return self.add_records(request_payload)
+
+    @staticmethod
+    def _normalize_attachment_values(values: Any) -> list[dict[str, Any]]:
+        """将附件字段值标准化为附件字典列表。"""
+
+        if values is None:
+            return []
+
+        if not isinstance(values, list):
+            raise ValueError("附件字段值必须为附件列表")
+
+        normalized: list[dict[str, Any]] = []
+        for item in values:
+            if isinstance(item, CellAttachmentValue):
+                normalized.append(item.model_dump(by_alias=True, exclude_none=True))
+                continue
+
+            if isinstance(item, dict):
+                attachment = CellAttachmentValue.model_validate(item)
+                normalized.append(
+                    attachment.model_dump(by_alias=True, exclude_none=True)
+                )
+                continue
+
+            raise ValueError("附件字段值必须是 CellAttachmentValue 或 dict")
+
+        return normalized
+
+    def _get_existing_attachment_values(
+        self,
+        *,
+        docid: str,
+        sheet_id: str,
+        record_id: str,
+        field_key: str,
+        key_type: CellValueKeyType,
+    ) -> list[dict[str, Any]]:
+        """查询目标记录当前附件字段值。"""
+
+        request_payload: dict[str, Any] = {
+            "docid": docid,
+            "sheet_id": sheet_id,
+            "record_ids": [record_id],
+            "key_type": key_type.value,
+            "limit": 1,
+        }
+
+        if key_type == CellValueKeyType.CELL_VALUE_KEY_TYPE_FIELD_ID:
+            request_payload["field_ids"] = [field_key]
+        else:
+            request_payload["field_titles"] = [field_key]
+
+        response = self.get_records(request_payload)
+        if not response.records:
+            raise ValueError(f"未找到记录：{record_id}")
+
+        record = response.records[0]
+        if record.record_id != record_id:
+            raise ValueError(
+                f"记录ID不匹配：期望 {record_id}，实际 {record.record_id}"
+            )
+
+        values = record.values or {}
+        if field_key not in values:
+            return []
+        return self._normalize_attachment_values(values.get(field_key))
+
+    def update_record_with_attachment(
+        self,
+        docid: str,
+        sheet_id: str,
+        record_id: str,
+        field_key: str,
+        attachments: list[CellAttachmentValue | dict[str, Any]],
+        *,
+        key_type: CellValueKeyType = CellValueKeyType.CELL_VALUE_KEY_TYPE_FIELD_ID,
+        append: bool = False,
+    ) -> UpdateRecordsResponse:
+        """
+        Args:
+            docid: 文档 ID。
+            sheet_id: 子表 ID。
+            record_id: 目标记录 ID。
+            field_key: 附件字段的键。其含义由 ``key_type`` 决定；当
+                ``key_type`` 为字段 ID 时应传入字段 ID，否则应传入字段标题。
+            attachments: 要写入的附件列表，可为 ``CellAttachmentValue`` 或与其
+                结构兼容的字典。
+            key_type: 指定 ``field_key`` 的类型，用于决定请求中按字段 ID 还是
+                字段标题定位附件字段。
+            append: 是否在保留现有附件的基础上追加新附件。为 ``True`` 时，会先
+                查询记录当前附件并与 ``attachments`` 合并后再更新；该流程为先读
+                后写，非原子操作，并发场景下可能覆盖其他更新。
+
+        Returns:
+            UpdateRecordsResponse: 更新记录接口的响应结果。
+
+        Raises:
+            ValueError: 附件值结构不合法、目标记录不存在，或 `append=True`
+                时现有字段值不是附件列表。
+            WeComAPIError: 企业微信接口返回业务错误时抛出。
+            WeComRequestError: 请求企业微信接口失败时抛出。
+
+        `append=True` 时会先查询记录现有附件并与新附件合并后再更新。
+        """
+
+        normalized_new_attachments = self._normalize_attachment_values(attachments)
+        merged_attachments = normalized_new_attachments
+
+        if append:
+            existing_attachments = self._get_existing_attachment_values(
+                docid=docid,
+                sheet_id=sheet_id,
+                record_id=record_id,
+                field_key=field_key,
+                key_type=key_type,
+            )
+            merged_attachments = existing_attachments + normalized_new_attachments
+
+        request_payload = {
+            "docid": docid,
+            "sheet_id": sheet_id,
+            "key_type": key_type.value,
+            "records": [
+                {
+                    "record_id": record_id,
+                    "values": {field_key: merged_attachments},
+                }
+            ],
+        }
+        return self.update_records(request_payload)
 
     def _build_attachment_payload(
         self,
@@ -613,6 +745,97 @@ class SmartSheetAPI:
             field_key=field_key,
             attachments=[attachment],
             key_type=key_type,
+        )
+
+    def upload_bytes_and_update_attachment_record(
+        self,
+        docid: str,
+        sheet_id: str,
+        record_id: str,
+        field_key: str,
+        file_name: str,
+        file_bytes: bytes,
+        *,
+        spaceid: str | None = None,
+        fatherid: str | None = None,
+        selected_ticket: str | None = None,
+        attachment_metadata: dict[str, Any] | CellAttachmentValue | None = None,
+        key_type: CellValueKeyType = CellValueKeyType.CELL_VALUE_KEY_TYPE_FIELD_ID,
+        share_link: bool = True,
+        append: bool = False,
+    ) -> UpdateRecordsResponse:
+        """根据文件字节内容上传到微盘，并更新已有记录的附件字段。
+
+        该方法会先将 `file_bytes` 上传到微盘，随后构造智能表格附件字段所需的
+        附件对象，并调用记录更新接口写入指定记录。
+
+        Args:
+            docid: 智能表格文档 ID。
+            sheet_id: 子表 ID。
+            record_id: 需要更新的记录 ID。
+            field_key: 附件字段的字段标识；其解释方式由 `key_type` 决定。
+            file_name: 上传文件名，同时用于附件默认名称和扩展名推断。
+            file_bytes: 要上传的文件二进制内容。
+            spaceid: 微盘空间 ID。未提供时由底层上传接口使用其默认行为。
+            fatherid: 微盘父目录 ID。未提供时由底层上传接口使用其默认行为。
+            selected_ticket: 上传文件时使用的凭证。未提供时由底层上传接口决定。
+            attachment_metadata: 额外的附件元数据，可为 `dict`、`CellAttachmentValue`
+                或 `None`。提供后会与默认附件信息合并；其中的字段可覆盖默认值，
+                例如名称、大小、文件扩展名或其他附件属性。
+            key_type: `field_key` 的类型，默认按字段 ID 解析。
+            share_link: 是否在附件数据中追加分享链接信息。为 `True` 时会调用
+                分享链接补充逻辑，使生成的附件 payload 包含可分享 URL；为 `False`
+                时仅写入基础附件信息。
+            append: 是否以追加模式更新附件字段。`False` 表示使用传入附件列表更新
+                目标字段；`True` 表示在底层更新逻辑支持时，将新附件追加到已有附件。
+                需要注意，此流程不是原子操作：文件上传成功后，后续记录更新仍可能失败，
+                因而在 `append=True` 时尤其要由调用方自行处理重试、幂等和清理问题。
+
+        Returns:
+            UpdateRecordsResponse: 更新记录后的接口响应。
+
+        Raises:
+            ValueError: 上传目标参数、附件元数据或追加模式下的附件字段值不满足
+                helper 约束时抛出。
+            WeComAPIError: 企业微信接口返回业务错误时抛出。
+            WeComRequestError: 文件上传、分享链接补充或记录更新失败时抛出。若异常
+                发生在上传成功之后，微盘中的文件可能已经存在，但记录字段尚未更新。
+        """
+
+        file_id = self._upload_file_bytes(
+            file_name=file_name,
+            file_bytes=file_bytes,
+            spaceid=spaceid,
+            fatherid=fatherid,
+            selected_ticket=selected_ticket,
+        )
+
+        base_attachment: dict[str, Any] = {
+            "name": file_name,
+            "size": len(file_bytes),
+            "doc_type": 2,
+            "file_type": "Wedrive",
+        }
+        file_ext = self._guess_file_ext(file_name)
+        if file_ext:
+            base_attachment["file_ext"] = file_ext
+
+        attachment = self._build_attachment_payload(
+            file_id,
+            attachment_metadata=attachment_metadata,
+            base_attachment=base_attachment,
+        )
+        if share_link:
+            self._append_share_url(attachment, file_id)
+
+        return self.update_record_with_attachment(
+            docid=docid,
+            sheet_id=sheet_id,
+            record_id=record_id,
+            field_key=field_key,
+            attachments=[attachment],
+            key_type=key_type,
+            append=append,
         )
 
     def delete_records(

@@ -42,6 +42,8 @@
 - 智能表格附件辅助上传
 - 将微盘文件上传后写入附件字段
 - 根据 `bytes` 内容自动选择直传或分块上传，再写入附件字段
+- 上传微盘文件并更新已有记录的附件字段
+- 支持按覆盖或追加模式更新附件字段（`append`）
 - 设置文档权限
 - 获取文档权限信息
 - 修改文档加入规则
@@ -322,12 +324,78 @@ with WeComClient(
     print(response.ok, response.records)
 ```
 
+### 上传附件并更新已有记录
+
+如果你已有目标 `record_id`，可以直接上传文件并更新附件字段。
+
+```python
+from wecom_doc_sdk import WeComClient
+
+with WeComClient(
+    corp_id="YOUR_CORP_ID",
+    corp_secret="YOUR_CORP_SECRET",
+) as client:
+    response = client.smartsheet.upload_bytes_and_update_attachment_record(
+        docid="DOCID",
+        sheet_id="SHEET_ID",
+        record_id="RECORD_ID",
+        field_key="ATTACHMENT_FIELD_ID",
+        file_name="example.txt",
+        file_bytes=b"hello wecom",
+        spaceid="SPACEID",
+        fatherid="FOLDERID",
+        append=False,
+    )
+
+    print(response.ok, response.records)
+```
+
+### 追加模式更新附件字段
+
+将 `append=True` 时，SDK 会先查询已有附件，再将新附件追加后写回记录。
+
+```python
+from wecom_doc_sdk import WeComClient
+
+with WeComClient(
+    corp_id="YOUR_CORP_ID",
+    corp_secret="YOUR_CORP_SECRET",
+) as client:
+    response = client.smartsheet.upload_bytes_and_update_attachment_record(
+        docid="DOCID",
+        sheet_id="SHEET_ID",
+        record_id="RECORD_ID",
+        field_key="ATTACHMENT_FIELD_ID",
+        file_name="append.txt",
+        file_bytes=b"append data",
+        spaceid="SPACEID",
+        fatherid="FOLDERID",
+        append=True,
+    )
+
+    print(response.ok, response.records)
+```
+
+> [!IMPORTANT]
+> `append=True` 不是原子操作，内部采用“先查询再更新”的两步流程。
+> 在并发写入同一条记录时，可能出现覆盖其他写入的情况。
+> 例如，两个进程同时向同一条记录追加附件时，其中一次更新可能会覆盖另一次刚追加的附件列表。
+> 另外，文件上传与记录更新不是单个事务；如果上传成功但后续更新记录失败，微盘中可能已经存在文件，而记录附件字段尚未写入。
+> 若对并发一致性要求较高，建议业务侧串行化更新或加额外并发控制。
+>
+> [!TIP]
+> `field_key` 必须对应附件字段，且要与 `key_type` 匹配：
+>
+> - `CELL_VALUE_KEY_TYPE_FIELD_ID` 对应字段 ID
+> - `CELL_VALUE_KEY_TYPE_FIELD_TITLE` 对应字段标题
+
 ## 错误处理
 
-SDK 将错误分成两类：
+SDK 常见错误可分为三类：
 
 - `WeComAPIError`：企业微信接口已返回响应，但 `errcode != 0`
 - `WeComRequestError`：网络异常、HTTP 状态异常或响应解析失败
+- `ValueError`：本地参数或 helper 语义校验失败，例如附件字段类型不匹配、记录不存在，或附件元数据覆盖保留字段
 
 推荐按下面的方式处理：
 
@@ -347,6 +415,8 @@ except WeComAPIError as exc:
 except WeComRequestError as exc:
     print("请求失败", exc)
     print("底层原因", exc.cause)
+except ValueError as exc:
+    print("参数或调用语义错误", exc)
 ```
 
 ## 设计约定
