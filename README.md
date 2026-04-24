@@ -135,47 +135,12 @@ with WeComClient(
 
 仓库内已经提供了可直接参考的静态模板，位于 `examples/cli/`：
 
-- `examples/cli/scaffold.create.yaml`
-- `examples/cli/scaffold.use_existing.yaml`
 - `examples/cli/space.yaml`
 - `examples/cli/folder.yaml`
 - `examples/cli/smartsheet.yaml`
 - `examples/cli/sheet.yaml`
 - `examples/cli/space-admin.yaml`
 - `examples/cli/doc-admin.yaml`
-
-先生成一份脚手架模板：
-
-```bash
-wecom-doc-sdk template init scaffold template.yaml
-```
-
-命令成功后会输出 JSON，包含稳定字段：`status`、`action`、`path`。
-
-如果你已经有现成的微盘空间和目录，也可以生成复用模式的脚手架模板：
-
-```bash
-wecom-doc-sdk template init scaffold template.yaml --mode use_existing
-```
-
-确认模板内容后，执行脚手架创建微盘空间、目录、智能表格、子表和字段：
-
-```bash
-wecom-doc-sdk scaffold template.yaml \
-  --corp-id YOUR_CORP_ID \
-  --corp-secret YOUR_CORP_SECRET
-```
-
-只想预览本次会创建什么资源时，可以先运行：
-
-```bash
-wecom-doc-sdk scaffold template.yaml \
-  --dry-run
-```
-
-`scaffold --dry-run` 不要求鉴权参数，输出 JSON 会包含 `status`、`action`、`mode`、`path`、`template_path`、`manifest_path` 和 `actions`。
-
-正式执行 `scaffold` 时，仍需提供 `--corp-id` 与 `--corp-secret`；成功后输出 JSON，包含 `status`、`action`、`path`、`manifest_path`、`template_path` 以及本次创建的关键资源标识。
 
 如果你想分别创建资源，也可以使用独立命令。
 
@@ -205,6 +170,8 @@ wecom-doc-sdk smartsheet create smartsheet.yaml \
   --corp-id YOUR_CORP_ID \
   --corp-secret YOUR_CORP_SECRET
 ```
+
+`smartsheet.yaml` 中可通过 `sheets` 列表一次定义多个子表，命令会按列表顺序依次创建。
 
 生成子表模板并在已有智能表格中创建子表：
 

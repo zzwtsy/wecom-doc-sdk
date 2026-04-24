@@ -1,6 +1,6 @@
 # 智能表格模板。
 # 这份模板可直接交给 `wecom-doc-sdk smartsheet create` 使用。
-# 如果填写 sheet，会在创建智能表格后顺带创建一个子表。
+# 如果填写 sheets，会在创建智能表格后顺带创建多个子表。
 
 # 智能表格标题。
 title: 示例智能表
@@ -11,12 +11,12 @@ title: 示例智能表
 # 可选文档管理员列表。
 # admin_users:
 #   - zhangsan
-# 可选子表配置。
-# sheet:
-#   title: 附件表
-#   index: 0
-#   fields:
-#     - field_title: 文件名
-#       field_type: FIELD_TYPE_TEXT
-#     - field_title: 附件
-#       field_type: FIELD_TYPE_ATTACHMENT
+# 可选子表配置列表。
+# sheets:
+#   - title: 附件表
+#     index: 0
+#     fields:
+#       - field_title: 文件名
+#         field_type: FIELD_TYPE_TEXT
+#       - field_title: 附件
+#         field_type: FIELD_TYPE_ATTACHMENT

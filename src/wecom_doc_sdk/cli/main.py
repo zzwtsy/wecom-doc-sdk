@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import NoReturn
 
 from .commands.doc import run_doc_admin_add
-from .commands.scaffold import run_scaffold
 from .commands.smartsheet import run_smartsheet_create, run_smartsheet_sheet_create
 from .commands.space import (
     run_space_admin_add,
@@ -15,11 +14,6 @@ from .commands.space import (
 )
 from .commands.template import run_template_init
 from .errors import CLIError
-from .models import (
-    TEMPLATE_KIND_SCAFFOLD,
-    TEMPLATE_MODE_CREATE,
-    TEMPLATE_MODE_USE_EXISTING,
-)
 from .utils import add_auth_args
 
 
@@ -54,16 +48,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser = CLIArgumentParser(prog="wecom-doc-sdk")
     subparsers = add_required_subparsers(parser, dest="command")
 
-    scaffold_parser = subparsers.add_parser(
-        "scaffold", help="根据 YAML 模板创建微盘空间和智能表格"
-    )
-    scaffold_parser.add_argument("template_path", help="YAML 模板路径")
-    add_auth_args(scaffold_parser, required=False)
-    scaffold_parser.add_argument("--output", help="manifest 输出路径")
-    scaffold_parser.add_argument(
-        "--dry-run", action="store_true", help="只输出计划，不调用写接口"
-    )
-
     template_parser = subparsers.add_parser("template", help="模板相关命令")
     template_subparsers = add_required_subparsers(
         template_parser, dest="template_command"
@@ -73,16 +57,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     template_kind_subparsers = add_required_subparsers(
         template_init_parser, dest="template_kind"
-    )
-    scaffold_template_parser = template_kind_subparsers.add_parser(
-        TEMPLATE_KIND_SCAFFOLD, help="生成脚手架 YAML 模板"
-    )
-    scaffold_template_parser.add_argument("template_path", help="模板输出路径")
-    scaffold_template_parser.add_argument(
-        "--mode",
-        choices=[TEMPLATE_MODE_CREATE, TEMPLATE_MODE_USE_EXISTING],
-        default=TEMPLATE_MODE_CREATE,
-        help="脚手架模板模式，默认 create",
     )
     for template_kind, help_text in (
         ("space", "生成微盘空间 YAML 模板"),
@@ -177,7 +151,6 @@ def main(argv: list[str] | None = None) -> int:
                 run_template_init(
                     kind=args.template_kind,
                     template_path=Path(args.template_path),
-                    mode=getattr(args, "mode", TEMPLATE_MODE_CREATE),
                 )
                 return 0
 
@@ -231,16 +204,6 @@ def main(argv: list[str] | None = None) -> int:
                     template_path=args.template_path,
                 )
                 return 0
-
-        if args.command == "scaffold":
-            run_scaffold(
-                corp_id=args.corp_id,
-                corp_secret=args.corp_secret,
-                template_path=Path(args.template_path),
-                output_path=Path(args.output) if args.output else None,
-                dry_run=bool(args.dry_run),
-            )
-            return 0
     except CLIError as exc:
         print(str(exc), file=sys.stderr)
         return 1

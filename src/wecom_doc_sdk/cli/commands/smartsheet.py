@@ -76,7 +76,7 @@ def run_smartsheet_create(
     corp_secret: str,
     template_path: str,
 ) -> dict[str, Any]:
-    """按模板创建智能表格，并可选创建一个子表。"""
+    """按模板创建智能表格，并可选创建多个子表。"""
 
     template = load_template(SmartSheetTemplate, template_path)
 
@@ -102,13 +102,16 @@ def run_smartsheet_create(
         if template.fatherid:
             result["fatherid"] = template.fatherid
 
-        if template.sheet:
-            result["sheet"] = create_sheet_and_fields(
-                client,
-                docid=docid,
-                sheet_config=template.sheet,
-                action_name="smartsheet create",
-            )
+        if template.sheets:
+            result["sheets"] = [
+                create_sheet_and_fields(
+                    client,
+                    docid=docid,
+                    sheet_config=sheet_config,
+                    action_name="smartsheet create",
+                )
+                for sheet_config in template.sheets
+            ]
 
     print_json(result)
     return result

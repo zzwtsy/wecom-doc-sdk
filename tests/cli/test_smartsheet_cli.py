@@ -53,16 +53,15 @@ def test_smartsheet_create_outputs_json(
     assert payload["fatherid"] == "FOLDERID"
 
 
-
-def test_smartsheet_create_with_sheet_and_fields(
+def test_smartsheet_create_with_sheets_and_fields(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """smartsheet create 带 sheet 时应继续创建子表和字段。"""
+    """smartsheet create 带 sheets 时应继续创建子表和字段。"""
 
     template_path = write_template_file(tmp_path, "smartsheet.yaml")
-    install_fake_yaml(monkeypatch, build_smartsheet_template(with_sheet=True))
+    install_fake_yaml(monkeypatch, build_smartsheet_template(with_sheets=True))
     FakeWeComClient.instances.clear()
     patch_wecom_client(monkeypatch, FakeWeComClient)
 
@@ -83,9 +82,60 @@ def test_smartsheet_create_with_sheet_and_fields(
 
     assert exit_code == 0
     assert [name for name, _ in calls] == ["create_doc", "add_sheet", "add_fields"]
-    assert payload["sheet"]["sheet_id"] == "SHEETID-1"
-    assert payload["sheet"]["fields"][0]["field_title"] == "文件名"
+    assert payload["sheets"][0]["sheet_id"] == "SHEETID-1"
+    assert payload["sheets"][0]["fields"][0]["field_title"] == "文件名"
 
+
+def test_smartsheet_create_with_multiple_sheets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """smartsheet create 应按顺序创建多个子表。"""
+
+    template_path = write_template_file(tmp_path, "smartsheet.yaml")
+    template_payload = build_smartsheet_template(with_sheets=True)
+    template_payload["sheets"].append(
+        {
+            "title": "二号子表",
+            "fields": [
+                {
+                    "field_title": "标题",
+                    "field_type": "FIELD_TYPE_TEXT",
+                }
+            ],
+        }
+    )
+    install_fake_yaml(monkeypatch, template_payload)
+    FakeWeComClient.instances.clear()
+    patch_wecom_client(monkeypatch, FakeWeComClient)
+
+    exit_code = main(
+        [
+            "smartsheet",
+            "create",
+            str(template_path),
+            "--corp-id",
+            "corp-id",
+            "--corp-secret",
+            "corp-secret",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    calls = FakeWeComClient.instances[0].calls
+
+    assert exit_code == 0
+    assert [name for name, _ in calls] == [
+        "create_doc",
+        "add_sheet",
+        "add_fields",
+        "add_sheet",
+        "add_fields",
+    ]
+    assert len(payload["sheets"]) == 2
+    assert payload["sheets"][0]["title"] == "附件表"
+    assert payload["sheets"][1]["title"] == "二号子表"
 
 
 def test_smartsheet_sheet_create_with_fields(

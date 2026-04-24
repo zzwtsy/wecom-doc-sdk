@@ -6,62 +6,24 @@ from pathlib import Path
 from wecom_doc_sdk.cli import main
 
 
-def test_template_init_scaffold_create_mode(
-    tmp_path: Path, capsys
+def test_template_init_success_payload_has_no_mode(
+    tmp_path: Path,
+    capsys,
 ) -> None:
-    """template init scaffold 默认生成 create 模式模板。"""
+    """template init 成功输出不再包含 mode 字段。"""
 
-    output_path = tmp_path / "scaffold.yaml"
+    output_path = tmp_path / "space.yaml"
 
-    exit_code = main(["template", "init", "scaffold", str(output_path)])
+    exit_code = main(["template", "init", "space", str(output_path)])
 
     payload = json.loads(capsys.readouterr().out)
-    content = output_path.read_text(encoding="utf-8")
 
     assert exit_code == 0
-    assert payload == {
-        "status": "success",
-        "action": "template_init",
-        "kind": "scaffold",
-        "mode": "create",
-        "path": str(output_path.resolve()),
-    }
-    assert "这份模板可以直接交给 `wecom-doc-sdk scaffold` 使用。" in content
-    assert "mode: create" in content
-
-
-def test_template_init_scaffold_use_existing_mode(
-    tmp_path: Path, capsys
-) -> None:
-    """scaffold 模板支持 use_existing 模式。"""
-
-    output_path = tmp_path / "scaffold.yaml"
-
-    exit_code = main(
-        [
-            "template",
-            "init",
-            "scaffold",
-            str(output_path),
-            "--mode",
-            "use_existing",
-        ]
-    )
-
-    payload = json.loads(capsys.readouterr().out)
-    content = output_path.read_text(encoding="utf-8")
-
-    assert exit_code == 0
-    assert payload == {
-        "status": "success",
-        "action": "template_init",
-        "kind": "scaffold",
-        "mode": "use_existing",
-        "path": str(output_path.resolve()),
-    }
-    assert "mode: use_existing" in content
-    assert "spaceid: SPACEID" in content
-
+    assert payload["status"] == "success"
+    assert payload["action"] == "template_init"
+    assert payload["kind"] == "space"
+    assert payload["path"] == str(output_path.resolve())
+    assert "mode" not in payload
 
 
 def test_template_init_generates_resource_templates(
@@ -110,7 +72,6 @@ def test_template_init_generates_resource_templates(
         assert expected_text in content
 
 
-
 def test_template_init_uses_incremented_name_when_output_exists(tmp_path: Path) -> None:
     """目标路径已存在时应自动生成带序号的新文件。"""
 
@@ -126,9 +87,8 @@ def test_template_init_uses_incremented_name_when_output_exists(tmp_path: Path) 
     assert incremented_path.exists()
 
 
-
-def test_template_init_rejects_mode_for_non_scaffold(tmp_path: Path, capsys) -> None:
-    """非 scaffold 模板不接受 --mode。"""
+def test_template_init_rejects_mode_argument(tmp_path: Path, capsys) -> None:
+    """template init 不再接受 --mode。"""
 
     output_path = tmp_path / "space.yaml"
 

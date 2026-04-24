@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from wecom_doc_sdk.cli.commands import doc as doc_command
-from wecom_doc_sdk.cli.commands import scaffold, smartsheet, space
+from wecom_doc_sdk.cli.commands import smartsheet, space
 from wecom_doc_sdk.models.documents import CreateDocResponse
 from wecom_doc_sdk.models.enums import FieldType
 from wecom_doc_sdk.models.fields import AddFieldsResponse, FieldModel
@@ -41,60 +41,6 @@ def write_template_file(tmp_path: Path, name: str = "template.yaml") -> Path:
     return template_path
 
 
-def build_scaffold_create_template() -> dict[str, Any]:
-    """生成 scaffold create 模式模板。"""
-
-    return {
-        "wedrive": {
-            "mode": "create",
-            "space_name": "项目资料库",
-            "space_sub_type": 0,
-            "auth_info": [{"type": 1, "userid": "zhangsan", "auth": 7}],
-            "folder_name": "附件目录",
-        },
-        "doc": {"title": "项目主表"},
-        "sheets": [
-            {
-                "title": "附件表",
-                "fields": [
-                    {
-                        "field_title": "文件名",
-                        "field_type": FieldType.FIELD_TYPE_TEXT.value,
-                    },
-                    {
-                        "field_title": "附件",
-                        "field_type": FieldType.FIELD_TYPE_ATTACHMENT.value,
-                    },
-                ],
-            }
-        ],
-    }
-
-
-def build_scaffold_existing_template() -> dict[str, Any]:
-    """生成 scaffold use_existing 模式模板。"""
-
-    return {
-        "wedrive": {
-            "mode": "use_existing",
-            "spaceid": "SPACEID",
-            "fatherid": "FOLDERID",
-        },
-        "doc": {"title": "已有空间主表"},
-        "sheets": [
-            {
-                "title": "收集表",
-                "fields": [
-                    {
-                        "field_title": "标题",
-                        "field_type": FieldType.FIELD_TYPE_TEXT.value,
-                    }
-                ],
-            }
-        ],
-    }
-
-
 def build_space_template(with_folder: bool = False) -> dict[str, Any]:
     """生成空间模板。"""
 
@@ -118,7 +64,7 @@ def build_folder_template() -> dict[str, Any]:
     }
 
 
-def build_smartsheet_template(with_sheet: bool = False) -> dict[str, Any]:
+def build_smartsheet_template(with_sheets: bool = False) -> dict[str, Any]:
     """生成智能表格模板。"""
 
     payload: dict[str, Any] = {
@@ -127,21 +73,23 @@ def build_smartsheet_template(with_sheet: bool = False) -> dict[str, Any]:
         "fatherid": "FOLDERID",
         "admin_users": ["zhangsan"],
     }
-    if with_sheet:
-        payload["sheet"] = {
-            "title": "附件表",
-            "index": 1,
-            "fields": [
-                {
-                    "field_title": "文件名",
-                    "field_type": FieldType.FIELD_TYPE_TEXT.value,
-                },
-                {
-                    "field_title": "附件",
-                    "field_type": FieldType.FIELD_TYPE_ATTACHMENT.value,
-                },
-            ],
-        }
+    if with_sheets:
+        payload["sheets"] = [
+            {
+                "title": "附件表",
+                "index": 1,
+                "fields": [
+                    {
+                        "field_title": "文件名",
+                        "field_type": FieldType.FIELD_TYPE_TEXT.value,
+                    },
+                    {
+                        "field_title": "附件",
+                        "field_type": FieldType.FIELD_TYPE_ATTACHMENT.value,
+                    },
+                ],
+            }
+        ]
     return payload
 
 
@@ -324,5 +272,4 @@ def patch_wecom_client(
 
     monkeypatch.setattr(space, "WeComClient", client_cls)
     monkeypatch.setattr(smartsheet, "WeComClient", client_cls)
-    monkeypatch.setattr(scaffold, "WeComClient", client_cls)
     monkeypatch.setattr(doc_command, "WeComClient", client_cls)

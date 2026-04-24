@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from ..models import TEMPLATE_KIND_SCAFFOLD, TEMPLATE_MODE_CREATE
 from ..templates import build_template_content
 from ..utils import build_success_payload, print_json, resolve_non_conflicting_path
 
@@ -11,7 +10,6 @@ from ..utils import build_success_payload, print_json, resolve_non_conflicting_p
 def run_template_init(
     *,
     kind: Literal[
-        "scaffold",
         "space",
         "folder",
         "smartsheet",
@@ -20,18 +18,16 @@ def run_template_init(
         "doc-admin",
     ],
     template_path: Path,
-    mode: Literal["create", "use_existing"] = TEMPLATE_MODE_CREATE,
 ) -> Path:
     """生成带注释的 YAML 模板文件。"""
 
     final_path = resolve_non_conflicting_path(template_path)
     final_path.parent.mkdir(parents=True, exist_ok=True)
-    final_path.write_text(build_template_content(kind, mode=mode), encoding="utf-8")
+    final_path.write_text(build_template_content(kind), encoding="utf-8")
     print_json(
         build_success_payload(
             "template_init",
             kind=kind,
-            mode=mode if kind == TEMPLATE_KIND_SCAFFOLD else TEMPLATE_MODE_CREATE,
             path=str(final_path.resolve()),
         )
     )
