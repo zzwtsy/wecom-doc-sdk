@@ -10,6 +10,8 @@ from wecom_doc_sdk.apis import SmartSheetAPI
 from wecom_doc_sdk.models.records import (
     AddRecord,
     CellAttachmentValue,
+    CellTextFormat,
+    CellTextValue,
     GetRecordsRequest,
     GetRecordsResponse,
     UpdateRecord,
@@ -118,6 +120,80 @@ def test_get_records_response_rejects_unknown_attachment_keys() -> None:
                 ],
             }
         )
+
+
+def test_get_records_response_parses_text_segments_with_format() -> None:
+    """带富文本样式的文本段应被解析为 `CellTextValue`/`CellUrlValue`，而非整格失败。
+
+    复刻线上“问题描述”单元格的真实结构：普通文本段与带 `format`/`link` 的
+    `type=url` 段混合。`format` 富文本样式此前会触发 `extra_forbidden`，
+    进而在联合类型逐分支兜底中放大成几十条校验错误。
+    """
+
+    response = GetRecordsResponse.model_validate(
+        {
+            "errcode": 0,
+            "errmsg": "ok",
+            "records": [
+                {
+                    "record_id": "r1",
+                    "values": {
+                        "问题描述": [
+                            {
+                                "text": "订单问题：—6天*1.5=9美金\n",
+                                "type": "text",
+                            },
+                            {
+                                "text": "今日中行汇率6.82，折合人民币61.38元\n",
+                                "type": "text",
+                            },
+                            {
+                                "text": "对公支付宝-账号：",
+                                "type": "text",
+                            },
+                            {
+                                "format": {
+                                    "font_color": "rgb(38, 126, 240)",
+                                    "underline": True,
+                                },
+                                "link": "mailto:test@test.com",
+                                "text": "test@test.com",
+                                "type": "url",
+                            },
+                            {
+                                "text": "付款备注订单号+费用…",
+                                "type": "text",
+                            },
+                        ]
+                    },
+                }
+            ],
+        }
+    )
+
+    assert response.records is not None
+    segments = response.records[0].values["问题描述"]
+    assert isinstance(segments, list)
+    assert len(segments) == 5
+
+    assert isinstance(segments[0], CellTextValue)
+    assert segments[0].type.value == "text"
+    assert segments[0].format is None
+
+    # `CellTextValue` 在联合类型中排首位且同时接受 `type=text`/`type=url`，
+    # 因此带 `link` 的 url 段也解析为 `CellTextValue`，而非独立的 `CellUrlValue`。
+    # 真实数据中 `link` 为带 `mailto:` 前缀的完整 URL，`text` 为展示用的纯邮箱。
+    url_segment = segments[3]
+    assert isinstance(url_segment, CellTextValue)
+    assert url_segment.type.value == "url"
+    assert url_segment.text == "test@test.com"
+    assert url_segment.link == "mailto:test@test.com"
+    assert isinstance(url_segment.format, CellTextFormat)
+    assert url_segment.format.font_color == "rgb(38, 126, 240)"
+    assert url_segment.format.underline is True
+
+    assert isinstance(segments[4], CellTextValue)
+    assert segments[4].text == "付款备注订单号+费用…"
 
 
 def test_add_record_rejects_none_values() -> None:

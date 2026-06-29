@@ -16,6 +16,23 @@ from .fields import Option
 from .views import FilterSpec
 
 
+class CellTextFormat(WeComBaseModel):
+    """文本段富文本样式。
+
+    企业微信会按需返回字体颜色、下划线等样式信息。样式键集合可能随接口迭代
+    扩展，因此这里沿用基类的 `extra="ignore"`：作为联合类型中的叶子对象，
+    放宽额外字段既不会削弱外层单元格对象的判别性，又能避免官方新增样式键时
+    直接导致整段文本解析失败。
+    """
+
+    font_color: Optional[str] = Field(default=None, description="字体颜色")
+    background_color: Optional[str] = Field(default=None, description="背景颜色")
+    bold: Optional[bool] = Field(default=None, description="是否加粗")
+    italic: Optional[bool] = Field(default=None, description="是否斜体")
+    underline: Optional[bool] = Field(default=None, description="是否下划线")
+    strikethrough: Optional[bool] = Field(default=None, description="是否删除线")
+
+
 class CellTextValue(WeComBaseModel):
     """文本或文本链接单元格值。"""
 
@@ -27,6 +44,8 @@ class CellTextValue(WeComBaseModel):
     text: Optional[str] = Field(default=None, description="文本内容")
     # 当 `type` 为 `url` 时表示跳转地址。
     link: Optional[str] = Field(default=None, description="链接地址（type=url 时有效）")
+    # 文本段的富文本样式，通常出现在 `type=url` 的链接文本段上。
+    format: Optional[CellTextFormat] = Field(default=None, description="富文本样式")
 
 
 class CellImageValue(WeComBaseModel):
@@ -93,6 +112,8 @@ class CellUrlValue(WeComBaseModel):
     type: CellTextType = Field(default=CellTextType.URL, description="固定为 url")
     text: Optional[str] = Field(default=None, description="展示文本")
     link: Optional[str] = Field(default=None, description="链接地址")
+    # 与 `CellTextValue` 一致，链接文本段同样可能携带富文本样式。
+    format: Optional[CellTextFormat] = Field(default=None, description="富文本样式")
 
 
 class CellLocationValue(WeComBaseModel):
